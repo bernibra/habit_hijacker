@@ -140,13 +140,16 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   // List of triggers, with a default negative item
   final List<Trigger> _triggers = [
-    Trigger(text: 'are you drinking?', isPositive: false),
+    Trigger(text: 'Are you drinking?', isPositive: false),
   ];
 
   // Add a new trigger to the list
   void _addTrigger(String triggerText, bool isPositive) {
-    // Limit to 30 chars
-    final limitedText = triggerText.length > 30 ? triggerText.substring(0, 30) : triggerText;
+    // Limit to 30 chars and capitalize
+    String limitedText = triggerText.length > 30 ? triggerText.substring(0, 30) : triggerText;
+    if (limitedText.isNotEmpty) {
+      limitedText = limitedText[0].toUpperCase() + limitedText.substring(1);
+    }
     setState(() {
       _triggers.add(Trigger(text: limitedText, isPositive: isPositive));
     });
@@ -160,15 +163,26 @@ class _LandingPageState extends State<LandingPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Add Trigger', style: TextStyle(fontFamily: cssMonoFont, fontSize: 16)),
+          title: Text('What is your habit trigger?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 autofocus: true,
-                style: TextStyle(fontFamily: cssMonoFont, fontSize: 14),
-                decoration: InputDecoration(hintText: 'Enter trigger', contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10)),
+                style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                decoration: InputDecoration(
+                  hintText: 'Enter trigger',
+                  hintStyle: TextStyle(color: cssText),
+                  contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                  counterStyle: TextStyle(color: cssText),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: cssText),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: cssText),
+                  ),
+                ),
                 maxLength: 30,
                 onChanged: (value) {
                   newTrigger = value;
@@ -178,8 +192,16 @@ class _LandingPageState extends State<LandingPage> {
               Row(
                 children: [
                   ChoiceChip(
-                    label: Text('Negative', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
+                    label: Text('Negative',
+                        style: TextStyle(
+                          fontFamily: cssMonoFont,
+                          fontSize: 13,
+                          color: !isPositive ? cssBackground : cssAccent,
+                        )),
                     selected: !isPositive,
+                    selectedColor: cssAccent,
+                    backgroundColor: !isPositive ? cssAccent : cssSecondary,
+                    side: BorderSide(color: !isPositive ? cssBackground : cssAccent),
                     onSelected: (selected) {
                       isPositive = false;
                       (context as Element).markNeedsBuild();
@@ -187,8 +209,16 @@ class _LandingPageState extends State<LandingPage> {
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: Text('Positive', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
+                    label: Text('Positive',
+                        style: TextStyle(
+                          fontFamily: cssMonoFont,
+                          fontSize: 13,
+                          color: isPositive ? cssBackground : cssAccent,
+                        )),
                     selected: isPositive,
+                    selectedColor: cssAccent,
+                    backgroundColor: isPositive ? cssAccent : cssSecondary,
+                    side: BorderSide(color: isPositive ? cssBackground : cssAccent),
                     onSelected: (selected) {
                       isPositive = true;
                       (context as Element).markNeedsBuild();
@@ -212,7 +242,14 @@ class _LandingPageState extends State<LandingPage> {
                   _addTrigger(newTrigger.trim(), isPositive);
                 }
               },
-              child: Text('Add', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
+              style: TextButton.styleFrom(
+                backgroundColor: cssText,
+                foregroundColor: cssBackground,
+                textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Add'),
             ),
           ],
         );
@@ -246,7 +283,7 @@ class _LandingPageState extends State<LandingPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: cssSecondary,
-        title: Text("it's ok, you'll manage next time", style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+        title: Text("It's ok, next time!", style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -301,10 +338,11 @@ class _LandingPageState extends State<LandingPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // First button: always the positive response (yellow)
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _handleTriggerAction(trigger, true); // averted
+                    _handleTriggerAction(trigger, trigger.isPositive); // true for positive, false for negative
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: cssAccent,
@@ -315,13 +353,14 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text('averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text(trigger.isPositive ? 'indulged' : 'averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
                 const SizedBox(height: 10),
+                // Second button: always the negative response (secondary)
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _handleTriggerAction(trigger, false); // indulged
+                    _handleTriggerAction(trigger, !trigger.isPositive); // false for positive, true for negative
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: cssSecondary,
@@ -332,7 +371,7 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text('indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text(trigger.isPositive ? 'averted' : 'indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
               ],
             ),
@@ -365,7 +404,7 @@ class _LandingPageState extends State<LandingPage> {
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive),
+                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive, averted: null, showStats: true),
                       ));
                     },
                   ),
@@ -481,66 +520,93 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent, // Make Scaffold transparent
-      appBar: AppBar(
-        title: Text('your triggers', style: TextStyle(fontFamily: cssMonoFont, fontSize: 18)),
-        backgroundColor: cssBackground,
-        elevation: 2,
-        foregroundColor: cssText,
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          // PNG background layer
-          Positioned.fill(
-            child: Image.asset(
-              'assets/background.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          // Main content
-          ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-            itemCount: _triggers.length,
-            itemBuilder: (context, index) {
-              final trigger = _triggers[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: trigger.isPositive ? cssAccent : cssSecondary,
-                    foregroundColor: trigger.isPositive ? cssBackground : cssText,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                    shadowColor: cssShadow,
-                    side: BorderSide(color: trigger.isPositive ? cssAccent : cssText, width: 2),
-                  ),
-                  onPressed: () {
-                    _showTriggerActionDialog(trigger);
-                  },
-                  onLongPress: () {
-                    _showTriggerOptions(trigger, index);
-                  },
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      trigger.text,
-                      style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
+    final screenHeight = MediaQuery.of(context).size.height;
+    final hasTriggers = _triggers.isNotEmpty;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(
+          backgroundColor: cssBackground,
+          body: Column(
+            children: [
+              SizedBox(height: screenHeight * 0.10), // More top margin
+              // Top image, centered, 25% of screen height
+              SizedBox(
+                height: screenHeight * 0.25,
+                child: Center(
+                  child: Image.asset(
+                    'assets/background.png',
+                    fit: BoxFit.contain,
                   ),
                 ),
-              );
-            },
+              ),
+              SizedBox(height: screenHeight * 0.06), // More space between image and triggers
+              // List of triggers
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                  itemCount: _triggers.length,
+                  itemBuilder: (context, index) {
+                    final trigger = _triggers[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10), // Less vertical margin
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: trigger.isPositive ? cssAccent : cssSecondary,
+                          foregroundColor: trigger.isPositive ? cssBackground : cssText,
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14), // Thinner padding
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Less round
+                          elevation: 4,
+                          shadowColor: cssShadow,
+                          side: BorderSide(color: trigger.isPositive ? cssAccent : cssText, width: 1), // Thinner border
+                          textStyle: TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w300, // Thin font
+                            fontSize: 15,
+                          ),
+                        ),
+                        onPressed: () {
+                          _showTriggerActionDialog(trigger);
+                        },
+                        onLongPress: () {
+                          _showTriggerOptions(trigger, index);
+                        },
+                        child: Center(
+                          child: Text(
+                            trigger.text,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w300, // Thin font
+                              letterSpacing: 0.5,
+                              overflow: TextOverflow.ellipsis,
+                              color: trigger.isPositive ? cssBackground : cssText,
+                            ),
+                            maxLines: 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          // Confetti widget overlay
-          Align(
-            alignment: Alignment.topCenter,
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showAddTriggerDialog,
+            backgroundColor: cssAccent,
+            child: Icon(Icons.add, color: cssBackground, size: 22),
+            tooltip: 'Add Trigger',
+            elevation: 4,
+          ),
+        ),
+        // Confetti widget overlay (superimposed to everything)
+        IgnorePointer(
+          child: Align(
+            alignment: Alignment.bottomCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
+              blastDirection: -3.14159/2, // Upwards
               blastDirectionality: BlastDirectionality.explosive,
               shouldLoop: false,
               colors: [cssAccent, cssSecondary, cssText, Colors.amber],
@@ -551,31 +617,38 @@ class _LandingPageState extends State<LandingPage> {
               gravity: 0.3,
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTriggerDialog,
-        backgroundColor: cssAccent,
-        child: Icon(Icons.add, color: cssBackground, size: 22),
-        tooltip: 'Add Trigger',
-        elevation: 4,
-      ),
+        ),
+      ],
     );
   }
 }
 
 // StatsPage for a trigger
-class StatsPage extends StatelessWidget {
+class StatsPage extends StatefulWidget {
   final String triggerText;
   final bool isPositive;
   final bool showCelebration;
-  final bool averted;
-  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted = false});
+  final bool? averted; // Made nullable
+  final bool showStats;
+  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted, this.showStats = false});
+
+  @override
+  State<StatsPage> createState() => _StatsPageState();
+}
+
+class _StatsPageState extends State<StatsPage> {
+  late bool _showStats;
+
+  @override
+  void initState() {
+    super.initState();
+    _showStats = widget.showStats;
+  }
 
   List<TriggerResponse> _getResponses() {
     final box = Hive.box<TriggerResponse>('responses');
     return box.values
-        .where((r) => r.triggerText == triggerText && r.isPositive == isPositive)
+        .where((r) => r.triggerText == widget.triggerText && r.isPositive == widget.isPositive)
         .toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
@@ -639,162 +712,187 @@ class StatsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responses = _getResponses();
-    if (responses.length < 2) {
-      return Scaffold(
-        backgroundColor: cssBackground,
-        appBar: AppBar(
-          backgroundColor: cssBackground,
-          foregroundColor: cssText,
-          elevation: 2,
-          centerTitle: true,
-          title: Text(
-            triggerText,
-            style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: cssAccent),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Back',
-          ),
-        ),
-        body: SafeArea(
-          child: Center(
-            child: Text('Not enough data yet!', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20)),
-          ),
-        ),
-      );
-    }
     final movingAvgShort = _movingAverage(responses, window: 3);
     final movingAvgLong = _movingAverage(responses, window: 10);
     final bernoulli = _bernoulliRegression(responses);
-    return Scaffold(
-      backgroundColor: cssBackground,
-      appBar: AppBar(
-        backgroundColor: cssBackground,
-        foregroundColor: cssText,
-        elevation: 2,
-        centerTitle: true,
-        title: Text(
-          triggerText,
-          style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20, fontWeight: FontWeight.bold),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: cssAccent),
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
-        ),
-      ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 24),
-                  if (showCelebration)
-                    ...[
-                      SizedBox(
-                        height: 0,
-                      ),
-                      Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
-                      const SizedBox(height: 6),
-                      Text(averted ? 'You averted a negative trigger.' : 'You indulged a positive trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                      const SizedBox(height: 18),
-                    ]
-                  else if (showCelebration == false && (averted != null))
-                    ...[
-                      Icon(Icons.info_outline, color: cssAccent, size: 40),
-                      const SizedBox(height: 12),
-                      Text("it's ok, you'll manage next time", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
-                      const SizedBox(height: 6),
-                      Text(averted ? 'You averted a positive trigger.' : 'You indulged a negative trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                      const SizedBox(height: 18),
-                    ],
-                  // Removed triggerText from here
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 220,
-                    child: LineChart(
-                      LineChartData(
-                        backgroundColor: cssSecondary,
-                        gridData: FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(show: false),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: movingAvgShort,
-                            isCurved: true,
-                            color: Colors.blueAccent,
-                            barWidth: 3,
-                            dotData: FlDotData(show: false),
-                          ),
-                          LineChartBarData(
-                            spots: movingAvgLong,
-                            isCurved: true,
-                            color: Colors.purple,
-                            barWidth: 3,
-                            dotData: FlDotData(show: false),
-                          ),
-                          if (bernoulli.isNotEmpty)
-                            LineChartBarData(
-                              spots: bernoulli,
-                              isCurved: true,
-                              color: Colors.orange,
-                              barWidth: 2,
-                              dotData: FlDotData(show: false),
-                              dashArray: [6, 4],
-                            ),
-                        ],
-                        minY: 0,
-                        maxY: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
-                      const SizedBox(width: 12),
-                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                      const SizedBox(width: 12),
-                      if (bernoulli.isNotEmpty)
-                        Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: _dotTimeline(responses)),
-                  ),
-                ],
-              ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(
+          backgroundColor: cssBackground,
+          appBar: AppBar(
+            backgroundColor: cssBackground,
+            elevation: 2,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: cssText),
+            title: Text(
+              widget.triggerText,
+              style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 20, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: cssText),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Back',
             ),
           ),
-          // Confetti overlay (always on top)
-          if (showCelebration)
-            IgnorePointer(
-              child: ConfettiWidget(
-                confettiController: ConfettiController(duration: const Duration(seconds: 2))..play(),
-                blastDirectionality: BlastDirectionality.explosive,
-                shouldLoop: false,
-                colors: [cssAccent, cssSecondary, cssText, Colors.amber],
-                numberOfParticles: 30,
-                maxBlastForce: 20,
-                minBlastForce: 8,
-                emissionFrequency: 0.1,
-                gravity: 0.3,
+          body: Stack(
+            children: [
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 24),
+                      if (widget.showCelebration)
+                        ...[
+                          SizedBox(
+                            height: 0,
+                          ),
+                          Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
+                          const SizedBox(height: 6),
+                          Text(widget.averted == true ? 'You averted a negative trigger.' : 'You indulged a positive trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                          const SizedBox(height: 18),
+                        ]
+                      else if (widget.showCelebration == false && widget.averted != null)
+                        ...[
+                          Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                          const SizedBox(height: 6),
+                          Text(widget.averted == true ? 'You averted a positive trigger.' : 'You indulged a negative trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                          const SizedBox(height: 18),
+                        ],
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (!_showStats)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showStats = true;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: cssText,
+                                  textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
+                                    const SizedBox(width: 6),
+                                    Icon(Icons.arrow_downward, color: cssText, size: 20),
+                                  ],
+                                ),
+                              ),
+                            AnimatedCrossFade(
+                              firstChild: SizedBox.shrink(),
+                              secondChild: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (responses.length >= 2)
+                                    SizedBox(
+                                      height: 220,
+                                      child: LineChart(
+                                        LineChartData(
+                                          backgroundColor: cssSecondary,
+                                          gridData: FlGridData(show: false),
+                                          borderData: FlBorderData(show: false),
+                                          titlesData: FlTitlesData(show: false),
+                                          lineBarsData: [
+                                            LineChartBarData(
+                                              spots: movingAvgShort,
+                                              isCurved: true,
+                                              color: Colors.blueAccent,
+                                              barWidth: 3,
+                                              dotData: FlDotData(show: false),
+                                            ),
+                                            LineChartBarData(
+                                              spots: movingAvgLong,
+                                              isCurved: true,
+                                              color: Colors.purple,
+                                              barWidth: 3,
+                                              dotData: FlDotData(show: false),
+                                            ),
+                                            if (bernoulli.isNotEmpty)
+                                              LineChartBarData(
+                                                spots: bernoulli,
+                                                isCurved: true,
+                                                color: Colors.orange,
+                                                barWidth: 2,
+                                                dotData: FlDotData(show: false),
+                                                dashArray: [6, 4],
+                                              ),
+                                          ],
+                                          minY: -0.1,
+                                          maxY: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                  if (responses.length >= 2)
+                                    Row(
+                                      children: [
+                                        Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                        const SizedBox(width: 12),
+                                        Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                        const SizedBox(width: 12),
+                                        if (bernoulli.isNotEmpty)
+                                          Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
+                                      ],
+                                    ),
+                                  const SizedBox(height: 24),
+                                  Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                    child: Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: responses.map((r) => Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: r.averted ? Colors.green : Colors.red,
+                                        ),
+                                      )).toList(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              crossFadeState: _showStats ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                              duration: const Duration(milliseconds: 350),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+            ],
+          ),
+        ),
+        // Confetti overlay (always on top, above everything)
+        if (widget.showCelebration)
+          IgnorePointer(
+            child: ConfettiWidget(
+              confettiController: ConfettiController(duration: const Duration(seconds: 2))..play(),
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: [cssAccent, cssSecondary, cssText, Colors.amber],
+              numberOfParticles: 30,
+              maxBlastForce: 20,
+              minBlastForce: 8,
+              emissionFrequency: 0.1,
+              gravity: 0.3,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
