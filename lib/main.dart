@@ -481,26 +481,26 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // SVG background layer
-        Positioned.fill(
-          child: SvgPicture.asset(
-            'assets/background.svg',
-            fit: BoxFit.cover,
-            // Removed colorFilter for original SVG colors
+    return Scaffold(
+      backgroundColor: Colors.transparent, // Make Scaffold transparent
+      appBar: AppBar(
+        title: Text('your triggers', style: TextStyle(fontFamily: cssMonoFont, fontSize: 18)),
+        backgroundColor: cssBackground,
+        elevation: 2,
+        foregroundColor: cssText,
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          // PNG background layer
+          Positioned.fill(
+            child: Image.asset(
+              'assets/background.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        Scaffold(
-          backgroundColor: cssBackground,
-          appBar: AppBar(
-            title: Text('your triggers', style: TextStyle(fontFamily: cssMonoFont, fontSize: 18)),
-            backgroundColor: cssBackground,
-            elevation: 2,
-            foregroundColor: cssText,
-            centerTitle: true,
-          ),
-          body: ListView.builder(
+          // Main content
+          ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
             itemCount: _triggers.length,
             itemBuilder: (context, index) {
@@ -536,30 +536,30 @@ class _LandingPageState extends State<LandingPage> {
               );
             },
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _showAddTriggerDialog,
-            backgroundColor: cssAccent,
-            child: Icon(Icons.add, color: cssBackground, size: 22),
-            tooltip: 'Add Trigger',
-            elevation: 4,
+          // Confetti widget overlay
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: [cssAccent, cssSecondary, cssText, Colors.amber],
+              numberOfParticles: 30,
+              maxBlastForce: 20,
+              minBlastForce: 8,
+              emissionFrequency: 0.1,
+              gravity: 0.3,
+            ),
           ),
-        ),
-        // Confetti widget overlay
-        Align(
-          alignment: Alignment.topCenter,
-          child: ConfettiWidget(
-            confettiController: _confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            shouldLoop: false,
-            colors: [cssAccent, cssSecondary, cssText, Colors.amber],
-            numberOfParticles: 30,
-            maxBlastForce: 20,
-            minBlastForce: 8,
-            emissionFrequency: 0.1,
-            gravity: 0.3,
-          ),
-        ),
-      ],
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddTriggerDialog,
+        backgroundColor: cssAccent,
+        child: Icon(Icons.add, color: cssBackground, size: 22),
+        tooltip: 'Add Trigger',
+        elevation: 4,
+      ),
     );
   }
 }
