@@ -4,6 +4,9 @@ import 'package:vibration/vibration.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
+import 'package:flutter_svg/flutter_svg.dart';
 
 // --- Custom Colors from CSS ---
 const Color cssBackground = Color(0xFF3D405B); // #3D405B
@@ -142,8 +145,10 @@ class _LandingPageState extends State<LandingPage> {
 
   // Add a new trigger to the list
   void _addTrigger(String triggerText, bool isPositive) {
+    // Limit to 30 chars
+    final limitedText = triggerText.length > 30 ? triggerText.substring(0, 30) : triggerText;
     setState(() {
-      _triggers.add(Trigger(text: triggerText, isPositive: isPositive));
+      _triggers.add(Trigger(text: limitedText, isPositive: isPositive));
     });
   }
 
@@ -164,6 +169,7 @@ class _LandingPageState extends State<LandingPage> {
                 autofocus: true,
                 style: TextStyle(fontFamily: cssMonoFont, fontSize: 14),
                 decoration: InputDecoration(hintText: 'Enter trigger', contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10)),
+                maxLength: 30,
                 onChanged: (value) {
                   newTrigger = value;
                 },
@@ -264,13 +270,14 @@ class _LandingPageState extends State<LandingPage> {
       averted: averted,
       timestamp: DateTime.now(),
     ));
-    // Navigate to result page
+    // Navigate directly to stats page with message
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ResultPage(
-          trigger: trigger,
+        builder: (context) => StatsPage(
+          triggerText: trigger.text,
+          isPositive: trigger.isPositive,
+          showCelebration: isCelebration,
           averted: averted,
-          isCelebration: isCelebration,
         ),
       ),
     );
@@ -357,10 +364,9 @@ class _LandingPageState extends State<LandingPage> {
                     icon: const Icon(Icons.info_outline, color: cssAccent, size: 32),
                     onPressed: () {
                       Navigator.of(context).pop();
-                      // TODO: Show info about this trigger
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Info for "${trigger.text}" coming soon!', style: TextStyle(fontFamily: cssMonoFont))),
-                      );
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive),
+                      ));
                     },
                   ),
                   const SizedBox(height: 4),
@@ -373,12 +379,36 @@ class _LandingPageState extends State<LandingPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.cleaning_services_outlined, color: cssAccent, size: 32),
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.of(context).pop();
-                      // TODO: Delete info for this trigger
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Delete info for "${trigger.text}" coming soon!', style: TextStyle(fontFamily: cssMonoFont))),
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: cssSecondary,
+                          title: Text('Delete all data for this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+                          content: Text('This will remove all your responses for "${trigger.text}". Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent)),
+                            ),
+                          ],
+                        ),
                       );
+                      if (confirmed == true) {
+                        final box = Hive.box<TriggerResponse>('responses');
+                        final toDelete = box.values.where((r) => r.triggerText == trigger.text && r.isPositive == trigger.isPositive).toList();
+                        for (final r in toDelete) {
+                          r.delete();
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('All data for "${trigger.text}" deleted.', style: TextStyle(fontFamily: cssMonoFont))),
+                        );
+                      }
                     },
                   ),
                   const SizedBox(height: 4),
@@ -391,14 +421,39 @@ class _LandingPageState extends State<LandingPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 32),
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.of(context).pop();
-                      setState(() {
-                        _triggers.removeAt(index);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Trigger deleted.', style: TextStyle(fontFamily: cssMonoFont))),
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: cssSecondary,
+                          title: Text('Delete this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+                          content: Text('This will remove the trigger and all its data. Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent)),
+                            ),
+                          ],
+                        ),
                       );
+                      if (confirmed == true) {
+                        setState(() {
+                          _triggers.removeAt(index);
+                        });
+                        final box = Hive.box<TriggerResponse>('responses');
+                        final toDelete = box.values.where((r) => r.triggerText == trigger.text && r.isPositive == trigger.isPositive).toList();
+                        for (final r in toDelete) {
+                          r.delete();
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Trigger and all data deleted.', style: TextStyle(fontFamily: cssMonoFont))),
+                        );
+                      }
                     },
                   ),
                   const SizedBox(height: 4),
@@ -428,6 +483,14 @@ class _LandingPageState extends State<LandingPage> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // SVG background layer
+        Positioned.fill(
+          child: SvgPicture.asset(
+            'assets/background.svg',
+            fit: BoxFit.cover,
+            // Removed colorFilter for original SVG colors
+          ),
+        ),
         Scaffold(
           backgroundColor: cssBackground,
           appBar: AppBar(
@@ -466,7 +529,7 @@ class _LandingPageState extends State<LandingPage> {
                       trigger.text,
                       style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
                       overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
+                      maxLines: 1,
                     ),
                   ),
                 ),
@@ -501,58 +564,236 @@ class _LandingPageState extends State<LandingPage> {
   }
 }
 
-class ResultPage extends StatelessWidget {
-  final Trigger trigger;
-  final bool averted; // true if averted, false if indulged
-  final bool isCelebration; // true for confetti, false for sober message
-  const ResultPage({super.key, required this.trigger, required this.averted, required this.isCelebration});
+// StatsPage for a trigger
+class StatsPage extends StatelessWidget {
+  final String triggerText;
+  final bool isPositive;
+  final bool showCelebration;
+  final bool averted;
+  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted = false});
+
+  List<TriggerResponse> _getResponses() {
+    final box = Hive.box<TriggerResponse>('responses');
+    return box.values
+        .where((r) => r.triggerText == triggerText && r.isPositive == isPositive)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  }
+
+  // Moving average with custom window
+  List<FlSpot> _movingAverage(List<TriggerResponse> responses, {int window = 5}) {
+    List<FlSpot> spots = [];
+    List<double> buffer = [];
+    for (int i = 0; i < responses.length; i++) {
+      buffer.add(responses[i].averted ? 1.0 : 0.0);
+      if (buffer.length > window) buffer.removeAt(0);
+      double avg = buffer.reduce((a, b) => a + b) / buffer.length;
+      spots.add(FlSpot(i.toDouble(), avg));
+    }
+    return spots;
+  }
+
+  // Remove CUSUM control chart
+  // Bernoulli regression (as before)
+  List<FlSpot> _bernoulliRegression(List<TriggerResponse> responses) {
+    if (responses.length < 2) return [];
+    final n = responses.length;
+    final xs = List.generate(n, (i) => i.toDouble());
+    final ys = responses.map((r) => r.averted ? 1.0 : 0.0).toList();
+    double xMean = xs.reduce((a, b) => a + b) / n;
+    double yMean = ys.reduce((a, b) => a + b) / n;
+    double num = 0, den = 0;
+    for (int i = 0; i < n; i++) {
+      num += (xs[i] - xMean) * (ys[i] - yMean);
+      den += (xs[i] - xMean) * (xs[i] - xMean);
+    }
+    double b = den == 0 ? 0 : num / den;
+    double a = yMean - b * xMean;
+    List<FlSpot> spots = [];
+    for (int i = 0; i < n; i++) {
+      double logit = a + b * xs[i];
+      double p = 1 / (1 + math.exp(-logit));
+      spots.add(FlSpot(xs[i], p));
+    }
+    return spots;
+  }
+
+  // Dot timeline: now with no jitter, no blur, smaller dots, and multi-line piling
+  List<Widget> _dotTimeline(List<TriggerResponse> responses) {
+    return [
+      Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: responses.map((r) => Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: r.averted ? Colors.green : Colors.red,
+          ),
+        )).toList(),
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final responses = _getResponses();
+    if (responses.length < 2) {
+      return Scaffold(
+        backgroundColor: cssBackground,
+        appBar: AppBar(
+          backgroundColor: cssBackground,
+          foregroundColor: cssText,
+          elevation: 2,
+          centerTitle: true,
+          title: Text(
+            triggerText,
+            style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: cssAccent),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Back',
+          ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: Text('Not enough data yet!', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20)),
+          ),
+        ),
+      );
+    }
+    final movingAvgShort = _movingAverage(responses, window: 3);
+    final movingAvgLong = _movingAverage(responses, window: 10);
+    final bernoulli = _bernoulliRegression(responses);
     return Scaffold(
       backgroundColor: cssBackground,
       appBar: AppBar(
-        title: Text('Result', style: TextStyle(fontFamily: cssMonoFont, fontSize: 18)),
         backgroundColor: cssBackground,
-        elevation: 2,
         foregroundColor: cssText,
+        elevation: 2,
         centerTitle: true,
+        title: Text(
+          triggerText,
+          style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 20, fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: cssAccent),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
+        ),
       ),
-      body: Center(
-        child: isCelebration
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SizedBox(height: 24),
+                  if (showCelebration)
+                    ...[
+                      SizedBox(
+                        height: 0,
+                      ),
+                      Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
+                      const SizedBox(height: 6),
+                      Text(averted ? 'You averted a negative trigger.' : 'You indulged a positive trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                      const SizedBox(height: 18),
+                    ]
+                  else if (showCelebration == false && (averted != null))
+                    ...[
+                      Icon(Icons.info_outline, color: cssAccent, size: 40),
+                      const SizedBox(height: 12),
+                      Text("it's ok, you'll manage next time", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                      const SizedBox(height: 6),
+                      Text(averted ? 'You averted a positive trigger.' : 'You indulged a negative trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                      const SizedBox(height: 18),
+                    ],
+                  // Removed triggerText from here
+                  const SizedBox(height: 16),
                   SizedBox(
-                    height: 180,
-                    child: ConfettiWidget(
-                      confettiController: ConfettiController(duration: const Duration(seconds: 2))..play(),
-                      blastDirectionality: BlastDirectionality.explosive,
-                      shouldLoop: false,
-                      colors: [cssAccent, cssSecondary, cssText, Colors.amber],
-                      numberOfParticles: 30,
-                      maxBlastForce: 20,
-                      minBlastForce: 8,
-                      emissionFrequency: 0.1,
-                      gravity: 0.3,
+                    height: 220,
+                    child: LineChart(
+                      LineChartData(
+                        backgroundColor: cssSecondary,
+                        gridData: FlGridData(show: false),
+                        borderData: FlBorderData(show: false),
+                        titlesData: FlTitlesData(show: false),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: movingAvgShort,
+                            isCurved: true,
+                            color: Colors.blueAccent,
+                            barWidth: 3,
+                            dotData: FlDotData(show: false),
+                          ),
+                          LineChartBarData(
+                            spots: movingAvgLong,
+                            isCurved: true,
+                            color: Colors.purple,
+                            barWidth: 3,
+                            dotData: FlDotData(show: false),
+                          ),
+                          if (bernoulli.isNotEmpty)
+                            LineChartBarData(
+                              spots: bernoulli,
+                              isCurved: true,
+                              color: Colors.orange,
+                              barWidth: 2,
+                              dotData: FlDotData(show: false),
+                              dashArray: [6, 4],
+                            ),
+                        ],
+                        minY: 0,
+                        maxY: 1,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                      const SizedBox(width: 12),
+                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                      const SizedBox(width: 12),
+                      if (bernoulli.isNotEmpty)
+                        Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
+                    ],
+                  ),
                   const SizedBox(height: 24),
-                  Text('🎉 Great job!', style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                  Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
                   const SizedBox(height: 8),
-                  Text(averted ? 'You averted a negative trigger.' : 'You indulged a positive trigger.', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssText)),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.info_outline, color: cssAccent, size: 48),
-                  const SizedBox(height: 24),
-                  Text("it's ok, you'll manage next time", style: TextStyle(fontFamily: cssMonoFont, fontSize: 18, color: cssAccent)),
-                  const SizedBox(height: 8),
-                  Text(averted ? 'You averted a positive trigger.' : 'You indulged a negative trigger.', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssText)),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: _dotTimeline(responses)),
+                  ),
                 ],
               ),
+            ),
+          ),
+          // Confetti overlay (always on top)
+          if (showCelebration)
+            IgnorePointer(
+              child: ConfettiWidget(
+                confettiController: ConfettiController(duration: const Duration(seconds: 2))..play(),
+                blastDirectionality: BlastDirectionality.explosive,
+                shouldLoop: false,
+                colors: [cssAccent, cssSecondary, cssText, Colors.amber],
+                numberOfParticles: 30,
+                maxBlastForce: 20,
+                minBlastForce: 8,
+                emissionFrequency: 0.1,
+                gravity: 0.3,
+              ),
+            ),
+        ],
       ),
     );
   }
