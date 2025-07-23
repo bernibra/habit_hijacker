@@ -700,8 +700,10 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   // Bernoulli regression (logistic regression line for binary outcomes)
-  List<FlSpot> _bernoulliRegression(List<TriggerResponse> responses) {
-    if (responses.length < 2) return [];
+  // Returns: [spots, slope, intercept]
+/*
+  List<dynamic> _bernoulliRegressionWithParams(List<TriggerResponse> responses) {
+    if (responses.length < 2) return [[], 0.0, 0.0];
     final n = responses.length;
     final xs = List.generate(n, (i) => i.toDouble());
     final ys = responses.map((r) => _score(r)).toList();
@@ -720,7 +722,100 @@ class _StatsPageState extends State<StatsPage> {
       double p = 1 / (1 + math.exp(-logit));
       spots.add(FlSpot(xs[i], p));
     }
-    return spots;
+    return [spots, b, a];
+  }
+*/
+  // New: Split probabilities metric (intercept = overall prob, slope = pY - pX)
+  Map<String, double> _splitProbabilitiesMetric(List<TriggerResponse> responses) {
+    final n = responses.length;
+    if (n == 0) {
+      return {
+        'overall': 0.0,
+        'pX': 0.0,
+        'pY': 0.0,
+        'slope': 0.0,
+      };
+    }
+    // Compute ones (using _score)
+    final scores = responses.map(_score).toList();
+    final k = scores.where((v) => v == 1.0).length;
+    final overall = k / n;
+    // If more than 10 responses, use only the last 10 for slope calculation
+    List<double> slopeScores;
+    if (n > 10) {
+      slopeScores = scores.sublist(n - 10);
+    } else {
+      slopeScores = scores;
+    }
+    final m = slopeScores.length;
+    final x = (m / 2).ceil();
+    final y = m - x;
+    final firstHalf = slopeScores.sublist(0, x);
+    final secondHalf = slopeScores.sublist(x);
+    final kX = firstHalf.where((v) => v == 1.0).length;
+    final kY = secondHalf.where((v) => v == 1.0).length;
+    final pX = x > 0 ? kX / x : 0.0;
+    final pY = y > 0 ? kY / y : 0.0;
+    final slope = pY - pX;
+    return {
+      'overall': overall,
+      'pX': pX,
+      'pY': pY,
+      'slope': slope,
+    };
+  }
+
+  // Helper to get message and color based on slope and intercept
+  Map<String, dynamic> _getProgressMessageFromSplitMetric(double slope, double intercept) {
+    // Slope thresholds
+    const strongDecrease = -0.10;
+    const smallDecrease = -0.05;
+    const noChangeLow = -0.05;
+    const noChangeHigh = 0.05;
+    const smallIncrease = 0.10;
+    // Intercept thresholds
+    const lowIntercept = 0.4;
+    const highIntercept = 0.6;
+    String messageTemplate = '';
+    String highlight = '';
+    Color color = neutralColor;
+    if (intercept < lowIntercept) {
+      // Low intercept
+      if (slope < strongDecrease) {
+        messageTemplate = "You should try a little harder, you're {highlight}."; highlight = "not progressing"; color = neutralColor;
+      } else if (slope < smallDecrease) {
+        messageTemplate = "You should try a little harder, you're {highlight}."; highlight = "not progressing"; color = neutralColor;
+      } else if (slope <= noChangeHigh) {
+        messageTemplate = "You should try a little harder, you're {highlight}."; highlight = "not progressing"; color = neutralColor;
+      } else if (slope <= smallIncrease) {
+        messageTemplate = "You're starting low, but there's a glimmer of progress. {highlight}."; highlight = "Keep going"; color = positiveColor;
+      } else {
+        messageTemplate = "Great job turning things around. You're {highlight}."; highlight = "making progress"; color = superPositiveColor;
+      }
+    } else if (intercept <= highIntercept) {
+      // Mid intercept
+      if (slope < strongDecrease) {
+        messageTemplate = "You’ve built a decent foundation, but things are {highlight}."; highlight = "falling off"; color = negativeColor;
+      } else if (slope < smallDecrease) {
+        messageTemplate = "You’re holding a middle ground, but {highlight}."; highlight = "slipping slightly"; color = negativeColor;
+      } else if (slope <= noChangeHigh) {
+        messageTemplate = "You’re stable, but {highlight}. Try to break out of the plateau."; highlight = "not improving"; color = neutralColor;
+      } else if (slope <= smallIncrease) {
+        messageTemplate = "Nice work. You’re {highlight}. Keep the momentum going."; highlight = "gaining ground"; color = positiveColor;
+      } else {
+        messageTemplate = "You're {highlight}. Keep it up."; highlight = "picking up speed"; color = superPositiveColor;
+      }
+    } else {
+      // High intercept
+      if (slope < strongDecrease) {
+        messageTemplate = "You’ve come far, but there’s a noticeable decline. {highlight}."; highlight = "Sliding back"; color = superNegativeColor;
+      } else if (slope < smallDecrease) {
+        messageTemplate = "You're doing well overall, but {highlight}. Stay sharp."; highlight = "dipping slightly"; color = negativeColor;
+      } else {
+        messageTemplate = "You’re {highlight}, with no signs of weakness."; highlight = "holding strong"; color = superPositiveColor;
+      }
+    }
+    return {"messageTemplate": messageTemplate, "highlight": highlight, "color": color};
   }
 
   // Dot timeline: shows a dot for each response (green for success, red for failure)
@@ -746,7 +841,10 @@ class _StatsPageState extends State<StatsPage> {
     final responses = _getResponses();
     final movingAvgShort = _movingAverage(responses, window: 3);
     final movingAvgLong = _movingAverage(responses, window: 10);
-    final bernoulli = _bernoulliRegression(responses);
+    final splitMetric = _splitProbabilitiesMetric(responses);
+    final intercept = splitMetric['overall'] ?? 0.0;
+    final slope = splitMetric['slope'] ?? 0.0;
+    final progressMsg = (responses.length > 1) ? _getProgressMessageFromSplitMetric(slope, intercept) : null;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -786,6 +884,28 @@ class _StatsPageState extends State<StatsPage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // Chart area
+                              if (progressMsg != null) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: RichText(
+                                    textAlign: TextAlign.center,
+                                    text: () {
+                                      final template = progressMsg["messageTemplate"] as String;
+                                      final highlight = progressMsg["highlight"] as String;
+                                      final color = progressMsg["color"] as Color;
+                                      final parts = template.split('{highlight}');
+                                      return TextSpan(
+                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                        children: [
+                                          if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
+                                          TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                                          if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
+                                        ],
+                                      );
+                                    }(),
+                                  ),
+                                ),
+                              ],
                               SizedBox(
                                 height: 220,
                                 child: LineChart(
@@ -795,6 +915,19 @@ class _StatsPageState extends State<StatsPage> {
                                     borderData: FlBorderData(show: false),
                                     titlesData: FlTitlesData(show: false),
                                     lineBarsData: [
+                                      // Dotted intercept line (behind others)
+                                      if (responses.length > 0)
+                                        LineChartBarData(
+                                          spots: [
+                                            FlSpot(0, intercept),
+                                            FlSpot((responses.length - 1).toDouble(), intercept),
+                                          ],
+                                          isCurved: false,
+                                          color: cssAccent.withOpacity(0.35),
+                                          barWidth: 2,
+                                          dotData: FlDotData(show: false),
+                                          dashArray: [6, 6],
+                                        ),
                                       if (responses.isNotEmpty)
                                         LineChartBarData(
                                           spots: responses.length == 1
@@ -812,15 +945,6 @@ class _StatsPageState extends State<StatsPage> {
                                           color: Colors.purple,
                                           barWidth: 3,
                                           dotData: FlDotData(show: false),
-                                        ),
-                                      if (bernoulli.isNotEmpty)
-                                        LineChartBarData(
-                                          spots: bernoulli,
-                                          isCurved: true,
-                                          color: Colors.orange,
-                                          barWidth: 2,
-                                          dotData: FlDotData(show: false),
-                                          dashArray: [6, 4],
                                         ),
                                     ],
                                     minY: -0.1,
@@ -855,9 +979,6 @@ class _StatsPageState extends State<StatsPage> {
                                     Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
                                     const SizedBox(width: 12),
                                     Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                                    const SizedBox(width: 12),
-                                    if (bernoulli.isNotEmpty)
-                                      Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
                                   ],
                                 ),
                               const SizedBox(height: 24),
@@ -935,6 +1056,28 @@ class _StatsPageState extends State<StatsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
                                     // Chart area
+                                    if (progressMsg != null) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 8.0),
+                                        child: RichText(
+                                          textAlign: TextAlign.center,
+                                          text: () {
+                                            final template = progressMsg["messageTemplate"] as String;
+                                            final highlight = progressMsg["highlight"] as String;
+                                            final color = progressMsg["color"] as Color;
+                                            final parts = template.split('{highlight}');
+                                            return TextSpan(
+                                              style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                              children: [
+                                                if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
+                                                TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                                                if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
+                                              ],
+                                            );
+                                          }(),
+                                        ),
+                                      ),
+                                    ],
                                     SizedBox(
                                       height: 220,
                                       child: LineChart(
@@ -944,6 +1087,19 @@ class _StatsPageState extends State<StatsPage> {
                                           borderData: FlBorderData(show: false),
                                           titlesData: FlTitlesData(show: false),
                                           lineBarsData: [
+                                            // Dotted intercept line (behind others)
+                                            if (responses.length > 0)
+                                              LineChartBarData(
+                                                spots: [
+                                                  FlSpot(0, intercept),
+                                                  FlSpot((responses.length - 1).toDouble(), intercept),
+                                                ],
+                                                isCurved: false,
+                                                color: cssAccent.withOpacity(0.35),
+                                                barWidth: 2,
+                                                dotData: FlDotData(show: false),
+                                                dashArray: [6, 6],
+                                              ),
                                             if (responses.isNotEmpty)
                                               LineChartBarData(
                                                 spots: responses.length == 1
@@ -961,15 +1117,6 @@ class _StatsPageState extends State<StatsPage> {
                                                 color: Colors.purple,
                                                 barWidth: 3,
                                                 dotData: FlDotData(show: false),
-                                              ),
-                                            if (bernoulli.isNotEmpty)
-                                              LineChartBarData(
-                                                spots: bernoulli,
-                                                isCurved: true,
-                                                color: Colors.orange,
-                                                barWidth: 2,
-                                                dotData: FlDotData(show: false),
-                                                dashArray: [6, 4],
                                               ),
                                           ],
                                           minY: -0.1,
@@ -1004,9 +1151,6 @@ class _StatsPageState extends State<StatsPage> {
                                           Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
                                           const SizedBox(width: 12),
                                           Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                                          const SizedBox(width: 12),
-                                          if (bernoulli.isNotEmpty)
-                                            Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
                                         ],
                                       ),
                                     const SizedBox(height: 24),
