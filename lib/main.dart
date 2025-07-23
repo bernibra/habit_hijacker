@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
 
 // --- Custom Colors from CSS ---
+// These colors are used throughout the app for consistent theming.
 const Color cssBackground = Color(0xFF3D405B); // #3D405B
 const Color cssText = Color(0xFFF4F1DE);      // #F4F1DE
 const Color cssAccent = Color(0xFFF4BA02);    // #F4BA02
@@ -16,14 +17,25 @@ const Color cssSecondary = Color(0xFF494C64); // #494C64
 const Color cssShadow = Color(0x26F4BA02);    // #F4BA02, 15% opacity
 const String cssMonoFont = 'monospace';
 
+// --- New Color Palette ---
+// Used for feedback and charting
+const Color superPositiveColor = Color(0xFF66BD63);   // #66bd63
+const Color positiveColor      = Color(0xFFDAE8C8);   // #DAE8C8
+const Color neutralColor       = Color(0xFFF4F1DE);   // #F4F1DE
+const Color negativeColor      = Color(0xFFF4D9C2);   // #F4D9C2
+const Color superNegativeColor = Color(0xFFF46D43);   // #f46d43
+
+// Entry point of the app
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   Hive.registerAdapter(TriggerResponseAdapter());
+  // await Hive.deleteBoxFromDisk('responses'); // Removed after migration
   await Hive.openBox<TriggerResponse>('responses');
   runApp(const HabitHijackerApp());
 }
 
+// Main app widget, sets up theme and home page
 class HabitHijackerApp extends StatelessWidget {
   const HabitHijackerApp({super.key});
 
@@ -89,32 +101,39 @@ class HabitHijackerApp extends StatelessWidget {
   }
 }
 
-// Define a Trigger class to hold text and type
+// Represents a user-defined trigger for a habit (e.g. "Are you drinking?")
 class Trigger {
-  final String text;
-  final bool isPositive; // true = positive, false = negative
-  Trigger({required this.text, required this.isPositive});
+  final String id; // Unique identifier for this trigger
+  final String text; // The trigger text/question
+  final bool isPositive; // true = positive habit, false = negative habit
+  final String habit; // The habit this trigger is associated with
+  Trigger({required this.id, required this.text, required this.isPositive, required this.habit});
 }
 
-// Model for storing responses
+// Hive model for storing user responses to triggers
 @HiveType(typeId: 0)
 class TriggerResponse extends HiveObject {
   @HiveField(0)
-  final String triggerText;
+  final String triggerId; // The id of the trigger this response is for
   @HiveField(1)
-  final bool isPositive;
+  final String triggerText; // The text of the trigger (for display)
   @HiveField(2)
-  final bool averted;
+  final bool isPositive; // Whether the trigger is positive or negative
   @HiveField(3)
-  final DateTime timestamp;
-  TriggerResponse({required this.triggerText, required this.isPositive, required this.averted, required this.timestamp});
+  final bool averted; // true if user averted the trigger, false if indulged
+  @HiveField(4)
+  final DateTime timestamp; // When the response was recorded
+  TriggerResponse({required this.triggerId, required this.triggerText, required this.isPositive, required this.averted, required this.timestamp});
 }
+
+// Hive adapter for TriggerResponse (required for Hive to store custom objects)
 class TriggerResponseAdapter extends TypeAdapter<TriggerResponse> {
   @override
   final int typeId = 0;
   @override
   TriggerResponse read(BinaryReader reader) {
     return TriggerResponse(
+      triggerId: reader.readString(),
       triggerText: reader.readString(),
       isPositive: reader.readBool(),
       averted: reader.readBool(),
@@ -123,6 +142,7 @@ class TriggerResponseAdapter extends TypeAdapter<TriggerResponse> {
   }
   @override
   void write(BinaryWriter writer, TriggerResponse obj) {
+    writer.writeString(obj.triggerId);
     writer.writeString(obj.triggerText);
     writer.writeBool(obj.isPositive);
     writer.writeBool(obj.averted);
@@ -130,6 +150,7 @@ class TriggerResponseAdapter extends TypeAdapter<TriggerResponse> {
   }
 }
 
+// The main landing page where users add triggers and log responses
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
@@ -140,40 +161,45 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   // List of triggers, with a default negative item
   final List<Trigger> _triggers = [
-    Trigger(text: 'Are you drinking?', isPositive: false),
+    Trigger(id: 'default-0', text: 'Are you drinking?', isPositive: false, habit: 'smoking'),
   ];
 
   // Add a new trigger to the list
-  void _addTrigger(String triggerText, bool isPositive) {
+  void _addTrigger(String triggerText, bool isPositive, String habit) {
     // Limit to 30 chars and capitalize
     String limitedText = triggerText.length > 30 ? triggerText.substring(0, 30) : triggerText;
     if (limitedText.isNotEmpty) {
       limitedText = limitedText[0].toUpperCase() + limitedText.substring(1);
     }
+    String habitText = habit.trim();
+    // Generate a unique id for the new trigger
+    String id = DateTime.now().millisecondsSinceEpoch.toString();
     setState(() {
-      _triggers.add(Trigger(text: limitedText, isPositive: isPositive));
+      _triggers.add(Trigger(id: id, text: limitedText, isPositive: isPositive, habit: habitText));
     });
   }
 
   // Show dialog to input new trigger and select type
   void _showAddTriggerDialog() {
     String newTrigger = '';
+    String newHabit = '';
     bool isPositive = false; // default to negative
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('What is your habit trigger?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('What is your habit?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssAccent, fontWeight: FontWeight.normal)),
+              // Habit input
               TextField(
                 autofocus: true,
                 style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
                 decoration: InputDecoration(
-                  hintText: 'Enter trigger',
-                  hintStyle: TextStyle(color: cssText),
+                  hintText: 'e.g. smoking',
+                  hintStyle: TextStyle(color: cssText.withOpacity(0.7)),
                   contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                   counterStyle: TextStyle(color: cssText),
                   enabledBorder: UnderlineInputBorder(
@@ -185,10 +211,33 @@ class _LandingPageState extends State<LandingPage> {
                 ),
                 maxLength: 30,
                 onChanged: (value) {
+                  newHabit = value;
+                },
+              ),
+              const SizedBox(height: 8),
+              Text('What is your trigger?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssAccent, fontWeight: FontWeight.normal)),
+              // Trigger input
+              TextField(
+                style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Are you drinking?',
+                  hintStyle: TextStyle(color: cssText.withOpacity(0.7)),
+                  contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                  counterStyle: TextStyle(color: cssText),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: cssText),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: cssText),
+                  ),
+                ),
+                maxLength: 50,
+                onChanged: (value) {
                   newTrigger = value;
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 23),
+              // Choice between negative and positive habit
               Row(
                 children: [
                   ChoiceChip(
@@ -237,9 +286,9 @@ class _LandingPageState extends State<LandingPage> {
             ),
             TextButton(
               onPressed: () {
-                if (newTrigger.trim().isNotEmpty) {
+                if (newTrigger.trim().isNotEmpty && newHabit.trim().isNotEmpty) {
                   Navigator.of(context).pop();
-                  _addTrigger(newTrigger.trim(), isPositive);
+                  _addTrigger(newTrigger.trim(), isPositive, newHabit.trim());
                 }
               },
               child: Text('Add', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
@@ -250,6 +299,7 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
+  // Confetti and audio controllers for celebration feedback
   final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 2));
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -270,7 +320,7 @@ class _LandingPageState extends State<LandingPage> {
     await _audioPlayer.play(AssetSource('assets/success.mp3'));
   }
 
-  // Show sober message
+  // Show sober message (when user indulges a negative habit or averts a positive one)
   void _showSoberMessage() {
     showDialog(
       context: context,
@@ -287,14 +337,16 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  // Handle trigger action logic
+  // Handle trigger action logic and navigate to stats page
   void _handleTriggerAction(Trigger trigger, bool averted) async {
     // averted: true if user clicked 'averted', false if 'indulged'
     final isPositive = trigger.isPositive;
+    // Celebration if: averted a negative, or indulged a positive
     final isCelebration = (averted && !isPositive) || (!averted && isPositive);
-    // Store response
+    // Store response in Hive
     final box = Hive.box<TriggerResponse>('responses');
     await box.add(TriggerResponse(
+      triggerId: trigger.id,
       triggerText: trigger.text,
       isPositive: trigger.isPositive,
       averted: averted,
@@ -304,7 +356,9 @@ class _LandingPageState extends State<LandingPage> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => StatsPage(
+          triggerId: trigger.id,
           triggerText: trigger.text,
+          habit: trigger.habit,
           isPositive: trigger.isPositive,
           showCelebration: isCelebration,
           averted: averted,
@@ -318,12 +372,22 @@ class _LandingPageState extends State<LandingPage> {
     showDialog(
       context: context,
       builder: (context) {
+        // Determine button colors based on habit type
+        final bool isPositive = trigger.isPositive;
+        // For negative habit: averted=positiveColor, indulged=negativeColor
+        // For positive habit: indulged=positiveColor, averted=negativeColor
+        final Color avertedbuttonBorderColor = isPositive ? superNegativeColor : superPositiveColor;
+        final Color indulgedbuttonBorderColor = isPositive ? superPositiveColor : superNegativeColor;
+        final Color avertedbuttonTextColor = isPositive ? superNegativeColor : superPositiveColor;
+        final Color indulgedbuttonTextColor = isPositive ? superPositiveColor : superNegativeColor;
+        final Color avertedBg = cssSecondary;
+        final Color indulgedBg = cssSecondary;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           backgroundColor: cssSecondary,
           title: Text(
-            trigger.text,
-            style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontWeight: FontWeight.bold, fontSize: 18),
+            'How did you do?',
+            style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.normal, fontSize: 18),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),
@@ -331,34 +395,36 @@ class _LandingPageState extends State<LandingPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Averted button
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                     _handleTriggerAction(trigger, true); // averted
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: cssAccent,
-                    foregroundColor: cssBackground,
+                    backgroundColor: avertedBg,
+                    foregroundColor: avertedbuttonTextColor,
                     minimumSize: const Size.fromHeight(36),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: BorderSide(color: cssAccent, width: 2),
+                    side: BorderSide(color: avertedbuttonBorderColor, width: 1.2),
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
                   child: Text('averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
                 const SizedBox(height: 10),
+                // Indulged button
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                     _handleTriggerAction(trigger, false); // indulged
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: cssSecondary,
-                    foregroundColor: cssText,
+                    backgroundColor: indulgedBg,
+                    foregroundColor: indulgedbuttonTextColor,
                     minimumSize: const Size.fromHeight(36),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: BorderSide(color: cssText, width: 2),
+                    side: BorderSide(color: indulgedbuttonBorderColor, width: 1.2),
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
@@ -386,7 +452,7 @@ class _LandingPageState extends State<LandingPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Info
+              // Info button: show stats for this trigger
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -395,7 +461,7 @@ class _LandingPageState extends State<LandingPage> {
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive, averted: null),
+                        builder: (context) => StatsPage(triggerId: trigger.id, triggerText: trigger.text, habit: trigger.habit, isPositive: trigger.isPositive, averted: null),
                       ));
                     },
                   ),
@@ -403,7 +469,7 @@ class _LandingPageState extends State<LandingPage> {
                   Text('Info', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 12)),
                 ],
               ),
-              // Delete info
+              // Delete info: remove all responses for this trigger
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -431,7 +497,7 @@ class _LandingPageState extends State<LandingPage> {
                       );
                       if (confirmed == true) {
                         final box = Hive.box<TriggerResponse>('responses');
-                        final toDelete = box.values.where((r) => r.triggerText == trigger.text && r.isPositive == trigger.isPositive).toList();
+                        final toDelete = box.values.where((r) => r.triggerId == trigger.id).toList();
                         for (final r in toDelete) {
                           r.delete();
                         }
@@ -445,7 +511,7 @@ class _LandingPageState extends State<LandingPage> {
                   Text('Delete Info', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 12)),
                 ],
               ),
-              // Delete trigger
+              // Delete trigger: remove trigger and all its data
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -476,7 +542,7 @@ class _LandingPageState extends State<LandingPage> {
                           _triggers.removeAt(index);
                         });
                         final box = Hive.box<TriggerResponse>('responses');
-                        final toDelete = box.values.where((r) => r.triggerText == trigger.text && r.isPositive == trigger.isPositive).toList();
+                        final toDelete = box.values.where((r) => r.triggerId == trigger.id).toList();
                         for (final r in toDelete) {
                           r.delete();
                         }
@@ -497,14 +563,7 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  // Modern color palette
-  static const Color negativeColor = Color(0xFFEF476F); // Vibrant pink-red
-  static const Color positiveColor = Color(0xFF118AB2); // Modern blue
-  static const Color backgroundColor = Color(0xFFF8F9FA); // Light background
-  static const Color accentColor = Color(0xFF06D6A0); // Mint green
-  static const String monoFont = 'monospace'; // Use system monospace
-
-  // Get color based on trigger type
+  // Get color based on trigger type (positive/negative)
   Color _triggerColor(bool isPositive) {
     return isPositive ? positiveColor : negativeColor;
   }
@@ -614,35 +673,47 @@ class _LandingPageState extends State<LandingPage> {
   }
 }
 
-// StatsPage for a trigger
+// StatsPage for a trigger: shows stats, charts, and timeline for a specific trigger
 class StatsPage extends StatefulWidget {
-  final String triggerText;
-  final bool isPositive;
-  final bool showCelebration;
-  final bool? averted; // Made nullable
-  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted});
+  final String triggerId; // Unique id of the trigger
+  final String triggerText; // Text of the trigger
+  final String habit; // Name of the habit
+  final bool isPositive; // Whether the trigger is positive or negative
+  final bool showCelebration; // Whether to show celebration feedback
+  final bool? averted; // Whether the last response was averted (nullable)
+  const StatsPage({super.key, required this.triggerId, required this.triggerText, required this.habit, required this.isPositive, this.showCelebration = false, this.averted});
 
   @override
   State<StatsPage> createState() => _StatsPageState();
 }
 
 class _StatsPageState extends State<StatsPage> {
-  bool _showStats = false;
+  bool _showStats = false; // Whether to show stats section
 
+  // Helper: for negative habits, averted=1, indulged=0; for positive, averted=0, indulged=1
+  double _score(TriggerResponse r) {
+    if (widget.isPositive) {
+      return r.averted ? 0.0 : 1.0;
+    } else {
+      return r.averted ? 1.0 : 0.0;
+    }
+  }
+
+  // Get all responses for this trigger (by id)
   List<TriggerResponse> _getResponses() {
     final box = Hive.box<TriggerResponse>('responses');
     return box.values
-        .where((r) => r.triggerText == widget.triggerText && r.isPositive == widget.isPositive)
+        .where((r) => r.triggerId == widget.triggerId)
         .toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
 
-  // Moving average with custom window
+  // Moving average with custom window size
   List<FlSpot> _movingAverage(List<TriggerResponse> responses, {int window = 5}) {
     List<FlSpot> spots = [];
     List<double> buffer = [];
     for (int i = 0; i < responses.length; i++) {
-      buffer.add(responses[i].averted ? 1.0 : 0.0);
+      buffer.add(_score(responses[i]));
       if (buffer.length > window) buffer.removeAt(0);
       double avg = buffer.reduce((a, b) => a + b) / buffer.length;
       spots.add(FlSpot(i.toDouble(), avg));
@@ -650,13 +721,12 @@ class _StatsPageState extends State<StatsPage> {
     return spots;
   }
 
-  // Remove CUSUM control chart
-  // Bernoulli regression (as before)
+  // Bernoulli regression (logistic regression line for binary outcomes)
   List<FlSpot> _bernoulliRegression(List<TriggerResponse> responses) {
     if (responses.length < 2) return [];
     final n = responses.length;
     final xs = List.generate(n, (i) => i.toDouble());
-    final ys = responses.map((r) => r.averted ? 1.0 : 0.0).toList();
+    final ys = responses.map((r) => _score(r)).toList();
     double xMean = xs.reduce((a, b) => a + b) / n;
     double yMean = ys.reduce((a, b) => a + b) / n;
     double num = 0, den = 0;
@@ -675,7 +745,7 @@ class _StatsPageState extends State<StatsPage> {
     return spots;
   }
 
-  // Dot timeline: now with no jitter, no blur, smaller dots, and multi-line piling
+  // Dot timeline: shows a dot for each response (green for success, red for failure)
   List<Widget> _dotTimeline(List<TriggerResponse> responses) {
     return [
       Wrap(
@@ -686,7 +756,7 @@ class _StatsPageState extends State<StatsPage> {
           height: 10,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: r.averted ? Colors.green : Colors.red,
+            color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
           ),
         )).toList(),
       ),
@@ -710,7 +780,7 @@ class _StatsPageState extends State<StatsPage> {
             centerTitle: true,
             iconTheme: IconThemeData(color: cssText),
             title: Text(
-              widget.triggerText,
+              widget.habit.isNotEmpty ? widget.habit[0].toUpperCase() + widget.habit.substring(1) : '',
               style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 20, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -730,6 +800,7 @@ class _StatsPageState extends State<StatsPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 24),
+                      // Show celebration or sober message if needed
                       if (widget.showCelebration)
                         ...[
                           SizedBox(
@@ -752,6 +823,7 @@ class _StatsPageState extends State<StatsPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            // Button to show stats
                             if (!_showStats)
                               TextButton(
                                 onPressed: () {
@@ -773,28 +845,33 @@ class _StatsPageState extends State<StatsPage> {
                                   ],
                                 ),
                               ),
+                            // Animated stats section
                             AnimatedCrossFade(
                               firstChild: SizedBox.shrink(),
                               secondChild: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  if (responses.length >= 2)
-                                    SizedBox(
-                                      height: 220,
-                                      child: LineChart(
-                                        LineChartData(
-                                          backgroundColor: cssSecondary,
-                                          gridData: FlGridData(show: false),
-                                          borderData: FlBorderData(show: false),
-                                          titlesData: FlTitlesData(show: false),
-                                          lineBarsData: [
+                                  // Chart area
+                                  SizedBox(
+                                    height: 220,
+                                    child: LineChart(
+                                      LineChartData(
+                                        backgroundColor: cssSecondary,
+                                        gridData: FlGridData(show: false),
+                                        borderData: FlBorderData(show: false),
+                                        titlesData: FlTitlesData(show: false),
+                                        lineBarsData: [
+                                          if (responses.isNotEmpty)
                                             LineChartBarData(
-                                              spots: movingAvgShort,
+                                              spots: responses.length == 1
+                                                  ? [FlSpot(0, _score(responses[0]))]
+                                                  : movingAvgShort,
                                               isCurved: true,
                                               color: Colors.blueAccent,
                                               barWidth: 3,
-                                              dotData: FlDotData(show: false),
+                                              dotData: FlDotData(show: responses.length == 1),
                                             ),
+                                          if (responses.length > 1)
                                             LineChartBarData(
                                               spots: movingAvgLong,
                                               isCurved: true,
@@ -802,22 +879,43 @@ class _StatsPageState extends State<StatsPage> {
                                               barWidth: 3,
                                               dotData: FlDotData(show: false),
                                             ),
-                                            if (bernoulli.isNotEmpty)
-                                              LineChartBarData(
-                                                spots: bernoulli,
-                                                isCurved: true,
-                                                color: Colors.orange,
-                                                barWidth: 2,
-                                                dotData: FlDotData(show: false),
-                                                dashArray: [6, 4],
-                                              ),
-                                          ],
-                                          minY: -0.1,
-                                          maxY: 1.1,
+                                          if (bernoulli.isNotEmpty)
+                                            LineChartBarData(
+                                              spots: bernoulli,
+                                              isCurved: true,
+                                              color: Colors.orange,
+                                              barWidth: 2,
+                                              dotData: FlDotData(show: false),
+                                              dashArray: [6, 4],
+                                            ),
+                                        ],
+                                        minY: -0.1,
+                                        maxY: 1.1,
+                                        lineTouchData: LineTouchData(
+                                          enabled: true,
+                                          touchTooltipData: LineTouchTooltipData(
+                                            tooltipBgColor: cssText.withOpacity(0.7), // Add transparency to tooltip background
+                                            fitInsideHorizontally: true, // Prevent tooltip from being clipped horizontally
+                                            fitInsideVertically: true,   // Prevent tooltip from being clipped vertically
+                                            getTooltipItems: (touchedSpots) {
+                                              return touchedSpots.map((spot) {
+                                                final y = spot.y;
+                                                return LineTooltipItem(
+                                                  y.isNaN ? '' : y.toStringAsFixed(2),
+                                                  TextStyle(
+                                                    color: spot.bar.color,
+                                                    fontFamily: cssMonoFont,
+                                                    fontSize: 13,
+                                                  ),
+                                                );
+                                              }).toList();
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  if (responses.length >= 2)
+                                  ),
+                                  if (responses.length >= 1)
                                     Row(
                                       children: [
                                         Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
@@ -841,7 +939,7 @@ class _StatsPageState extends State<StatsPage> {
                                         height: 10,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: r.averted ? Colors.green : Colors.red,
+                                          color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
                                         ),
                                       )).toList(),
                                     ),
