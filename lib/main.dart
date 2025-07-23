@@ -200,7 +200,7 @@ class _LandingPageState extends State<LandingPage> {
                         )),
                     selected: !isPositive,
                     selectedColor: cssAccent,
-                    backgroundColor: !isPositive ? cssAccent : cssSecondary,
+                    backgroundColor: cssSecondary,
                     side: BorderSide(color: !isPositive ? cssBackground : cssAccent),
                     onSelected: (selected) {
                       isPositive = false;
@@ -217,7 +217,7 @@ class _LandingPageState extends State<LandingPage> {
                         )),
                     selected: isPositive,
                     selectedColor: cssAccent,
-                    backgroundColor: isPositive ? cssAccent : cssSecondary,
+                    backgroundColor: cssSecondary,
                     side: BorderSide(color: isPositive ? cssBackground : cssAccent),
                     onSelected: (selected) {
                       isPositive = true;
@@ -242,14 +242,7 @@ class _LandingPageState extends State<LandingPage> {
                   _addTrigger(newTrigger.trim(), isPositive);
                 }
               },
-              style: TextButton.styleFrom(
-                backgroundColor: cssText,
-                foregroundColor: cssBackground,
-                textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 13),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: Text('Add'),
+              child: Text('Add', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
             ),
           ],
         );
@@ -338,11 +331,10 @@ class _LandingPageState extends State<LandingPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // First button: always the positive response (yellow)
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _handleTriggerAction(trigger, trigger.isPositive); // true for positive, false for negative
+                    _handleTriggerAction(trigger, true); // averted
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: cssAccent,
@@ -353,14 +345,13 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text(trigger.isPositive ? 'indulged' : 'averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text('averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
                 const SizedBox(height: 10),
-                // Second button: always the negative response (secondary)
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _handleTriggerAction(trigger, !trigger.isPositive); // false for positive, true for negative
+                    _handleTriggerAction(trigger, false); // indulged
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: cssSecondary,
@@ -371,7 +362,7 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text(trigger.isPositive ? 'averted' : 'indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text('indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
               ],
             ),
@@ -404,7 +395,7 @@ class _LandingPageState extends State<LandingPage> {
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive, averted: null, showStats: true),
+                        builder: (context) => StatsPage(triggerText: trigger.text, isPositive: trigger.isPositive, averted: null),
                       ));
                     },
                   ),
@@ -552,16 +543,16 @@ class _LandingPageState extends State<LandingPage> {
                       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10), // Less vertical margin
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: trigger.isPositive ? cssAccent : cssSecondary,
-                          foregroundColor: trigger.isPositive ? cssBackground : cssText,
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14), // Thinner padding
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Less round
+                          backgroundColor: cssBackground,
+                          foregroundColor: cssText,
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           elevation: 4,
                           shadowColor: cssShadow,
-                          side: BorderSide(color: trigger.isPositive ? cssAccent : cssText, width: 1), // Thinner border
+                          side: BorderSide(color: cssText, width: 1),
                           textStyle: TextStyle(
                             fontFamily: 'monospace',
-                            fontWeight: FontWeight.w300, // Thin font
+                            fontWeight: FontWeight.w300,
                             fontSize: 15,
                           ),
                         ),
@@ -577,10 +568,10 @@ class _LandingPageState extends State<LandingPage> {
                             style: TextStyle(
                               fontFamily: 'monospace',
                               fontSize: 14,
-                              fontWeight: FontWeight.w300, // Thin font
+                              fontWeight: FontWeight.w300,
                               letterSpacing: 0.5,
                               overflow: TextOverflow.ellipsis,
-                              color: trigger.isPositive ? cssBackground : cssText,
+                              color: cssText,
                             ),
                             maxLines: 1,
                           ),
@@ -594,7 +585,7 @@ class _LandingPageState extends State<LandingPage> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: _showAddTriggerDialog,
-            backgroundColor: cssAccent,
+            backgroundColor: cssText,
             child: Icon(Icons.add, color: cssBackground, size: 22),
             tooltip: 'Add Trigger',
             elevation: 4,
@@ -629,21 +620,14 @@ class StatsPage extends StatefulWidget {
   final bool isPositive;
   final bool showCelebration;
   final bool? averted; // Made nullable
-  final bool showStats;
-  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted, this.showStats = false});
+  const StatsPage({super.key, required this.triggerText, required this.isPositive, this.showCelebration = false, this.averted});
 
   @override
   State<StatsPage> createState() => _StatsPageState();
 }
 
 class _StatsPageState extends State<StatsPage> {
-  late bool _showStats;
-
-  @override
-  void initState() {
-    super.initState();
-    _showStats = widget.showStats;
-  }
+  bool _showStats = false;
 
   List<TriggerResponse> _getResponses() {
     final box = Hive.box<TriggerResponse>('responses');
