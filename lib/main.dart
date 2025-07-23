@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/services.dart';
 
 // --- Custom Colors from CSS ---
 // These colors are used throughout the app for consistent theming.
@@ -28,6 +29,9 @@ const Color superNegativeColor = Color(0xFFF46D43);   // #f46d43
 // Entry point of the app
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   await Hive.initFlutter();
   Hive.registerAdapter(TriggerResponseAdapter());
   // await Hive.deleteBoxFromDisk('responses'); // Removed after migration
@@ -918,10 +922,7 @@ class _StatsPageState extends State<StatsPage> {
                                       // Dotted intercept line (behind others)
                                       if (responses.length > 0)
                                         LineChartBarData(
-                                          spots: [
-                                            FlSpot(0, intercept),
-                                            FlSpot((responses.length - 1).toDouble(), intercept),
-                                          ],
+                                          spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
                                           isCurved: false,
                                           color: cssAccent.withOpacity(0.35),
                                           barWidth: 2,
@@ -976,6 +977,21 @@ class _StatsPageState extends State<StatsPage> {
                               if (responses.length >= 1)
                                 Row(
                                   children: [
+                                   // Average legend (dotted)
+                                   Row(
+                                     children: List.generate(7, (i) => Container(
+                                       width: 4,
+                                       height: 4,
+                                       margin: EdgeInsets.symmetric(horizontal: 1.5),
+                                       decoration: BoxDecoration(
+                                         color: cssAccent.withOpacity(0.7),
+                                         shape: BoxShape.circle,
+                                       ),
+                                     )),
+                                   ),
+                                   SizedBox(width: 4),
+                                   Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                   const SizedBox(width: 12),
                                     Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
                                     const SizedBox(width: 12),
                                     Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
@@ -1090,10 +1106,7 @@ class _StatsPageState extends State<StatsPage> {
                                             // Dotted intercept line (behind others)
                                             if (responses.length > 0)
                                               LineChartBarData(
-                                                spots: [
-                                                  FlSpot(0, intercept),
-                                                  FlSpot((responses.length - 1).toDouble(), intercept),
-                                                ],
+                                                spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
                                                 isCurved: false,
                                                 color: cssAccent.withOpacity(0.35),
                                                 barWidth: 2,
@@ -1148,6 +1161,21 @@ class _StatsPageState extends State<StatsPage> {
                                     if (responses.length >= 1)
                                       Row(
                                         children: [
+                                         // Average legend (dotted)
+                                         Row(
+                                           children: List.generate(7, (i) => Container(
+                                             width: 4,
+                                             height: 4,
+                                             margin: EdgeInsets.symmetric(horizontal: 1.5),
+                                             decoration: BoxDecoration(
+                                               color: cssAccent.withOpacity(0.7),
+                                               shape: BoxShape.circle,
+                                             ),
+                                           )),
+                                         ),
+                                         SizedBox(width: 4),
+                                         Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                         const SizedBox(width: 12),
                                           Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
                                           const SizedBox(width: 12),
                                           Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
