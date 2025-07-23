@@ -167,7 +167,7 @@ class _LandingPageState extends State<LandingPage> {
   // Add a new trigger to the list
   void _addTrigger(String triggerText, bool isPositive, String habit) {
     // Limit to 30 chars and capitalize
-    String limitedText = triggerText.length > 30 ? triggerText.substring(0, 30) : triggerText;
+    String limitedText = triggerText.length > 40 ? triggerText.substring(0, 40) : triggerText;
     if (limitedText.isNotEmpty) {
       limitedText = limitedText[0].toUpperCase() + limitedText.substring(1);
     }
@@ -209,7 +209,7 @@ class _LandingPageState extends State<LandingPage> {
                     borderSide: BorderSide(color: cssText),
                   ),
                 ),
-                maxLength: 30,
+                maxLength: 40,
                 onChanged: (value) {
                   newHabit = value;
                 },
@@ -231,7 +231,7 @@ class _LandingPageState extends State<LandingPage> {
                     borderSide: BorderSide(color: cssText),
                   ),
                 ),
-                maxLength: 50,
+                maxLength: 40,
                 onChanged: (value) {
                   newTrigger = value;
                 },
@@ -299,25 +299,13 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  // Confetti and audio controllers for celebration feedback
-  final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+  // Audio controller for celebration feedback
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void dispose() {
-    _confettiController.dispose();
     _audioPlayer.dispose();
     super.dispose();
-  }
-
-  // Show celebratory feedback: confetti, buzz, sound
-  void _showCelebration() async {
-    _confettiController.play();
-    if (await Vibration.hasVibrator() ?? false) {
-      Vibration.vibrate(duration: 300);
-    }
-    // Play a default short sound (using built-in asset)
-    await _audioPlayer.play(AssetSource('assets/success.mp3'));
   }
 
   // Show sober message (when user indulges a negative habit or averts a positive one)
@@ -399,7 +387,7 @@ class _LandingPageState extends State<LandingPage> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _handleTriggerAction(trigger, true); // averted
+                    _handleTriggerAction(trigger, true); // averted or missed out
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: avertedBg,
@@ -410,7 +398,7 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text('averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text(trigger.isPositive ? 'missed out' : 'averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
                 ),
                 const SizedBox(height: 10),
                 // Indulged button
@@ -457,7 +445,7 @@ class _LandingPageState extends State<LandingPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.info_outline, color: cssAccent, size: 32),
+                    icon: const Icon(Icons.info_outline, color: cssText, size: 32),
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(
@@ -466,7 +454,7 @@ class _LandingPageState extends State<LandingPage> {
                     },
                   ),
                   const SizedBox(height: 4),
-                  Text('Info', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 12)),
+                  Text('Info', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 12)),
                 ],
               ),
               // Delete info: remove all responses for this trigger
@@ -650,24 +638,6 @@ class _LandingPageState extends State<LandingPage> {
             elevation: 4,
           ),
         ),
-        // Confetti widget overlay (superimposed to everything)
-        IgnorePointer(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: -3.14159/2, // Upwards
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              colors: [cssAccent, cssSecondary, cssText, Colors.amber],
-              numberOfParticles: 30,
-              maxBlastForce: 20,
-              minBlastForce: 8,
-              emissionFrequency: 0.1,
-              gravity: 0.3,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -688,7 +658,15 @@ class StatsPage extends StatefulWidget {
 }
 
 class _StatsPageState extends State<StatsPage> {
-  bool _showStats = false; // Whether to show stats section
+  late bool _showStats; // Whether to show stats section
+
+  @override
+  void initState() {
+    super.initState();
+    // If averted is null, this means we came from the info button, so show stats by default
+    // Otherwise, keep the current behavior (show button first)
+    _showStats = widget.averted == null;
+  }
 
   // Helper: for negative habits, averted=1, indulged=0; for positive, averted=0, indulged=1
   double _score(TriggerResponse r) {
@@ -800,158 +778,264 @@ class _StatsPageState extends State<StatsPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 24),
-                      // Show celebration or sober message if needed
-                      if (widget.showCelebration)
-                        ...[
-                          SizedBox(
-                            height: 0,
-                          ),
-                          Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
-                          const SizedBox(height: 6),
-                          Text(widget.averted == true ? 'You averted a negative trigger.' : 'You indulged a positive trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                          const SizedBox(height: 18),
-                        ]
-                      else if (widget.showCelebration == false && widget.averted != null)
-                        ...[
-                          Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
-                          const SizedBox(height: 6),
-                          Text(widget.averted == true ? 'You averted a positive trigger.' : 'You indulged a negative trigger.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                          const SizedBox(height: 18),
-                        ],
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            // Button to show stats
-                            if (!_showStats)
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showStats = true;
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: cssText,
-                                  textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
-                                    const SizedBox(width: 6),
-                                    Icon(Icons.arrow_downward, color: cssText, size: 20),
-                                  ],
+                      // If opened from info (averted == null), show stats at the top
+                      if (widget.averted == null) ...[
+                        // Stats section always visible at the top
+                        if (_showStats)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Chart area
+                              SizedBox(
+                                height: 220,
+                                child: LineChart(
+                                  LineChartData(
+                                    backgroundColor: cssSecondary,
+                                    gridData: FlGridData(show: false),
+                                    borderData: FlBorderData(show: false),
+                                    titlesData: FlTitlesData(show: false),
+                                    lineBarsData: [
+                                      if (responses.isNotEmpty)
+                                        LineChartBarData(
+                                          spots: responses.length == 1
+                                              ? [FlSpot(0, _score(responses[0]))]
+                                              : movingAvgShort,
+                                          isCurved: true,
+                                          color: Colors.blueAccent,
+                                          barWidth: 3,
+                                          dotData: FlDotData(show: responses.length == 1),
+                                        ),
+                                      if (responses.length > 1)
+                                        LineChartBarData(
+                                          spots: movingAvgLong,
+                                          isCurved: true,
+                                          color: Colors.purple,
+                                          barWidth: 3,
+                                          dotData: FlDotData(show: false),
+                                        ),
+                                      if (bernoulli.isNotEmpty)
+                                        LineChartBarData(
+                                          spots: bernoulli,
+                                          isCurved: true,
+                                          color: Colors.orange,
+                                          barWidth: 2,
+                                          dotData: FlDotData(show: false),
+                                          dashArray: [6, 4],
+                                        ),
+                                    ],
+                                    minY: -0.1,
+                                    maxY: 1.1,
+                                    lineTouchData: LineTouchData(
+                                      enabled: true,
+                                      touchTooltipData: LineTouchTooltipData(
+                                        tooltipBgColor: cssText.withOpacity(0.7),
+                                        fitInsideHorizontally: true,
+                                        fitInsideVertically: true,
+                                        getTooltipItems: (touchedSpots) {
+                                          return touchedSpots.map((spot) {
+                                            final y = spot.y;
+                                            return LineTooltipItem(
+                                              y.isNaN ? '' : y.toStringAsFixed(2),
+                                              TextStyle(
+                                                color: spot.bar.color,
+                                                fontFamily: cssMonoFont,
+                                                fontSize: 13,
+                                              ),
+                                            );
+                                          }).toList();
+                                        },
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            // Animated stats section
-                            AnimatedCrossFade(
-                              firstChild: SizedBox.shrink(),
-                              secondChild: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Chart area
-                                  SizedBox(
-                                    height: 220,
-                                    child: LineChart(
-                                      LineChartData(
-                                        backgroundColor: cssSecondary,
-                                        gridData: FlGridData(show: false),
-                                        borderData: FlBorderData(show: false),
-                                        titlesData: FlTitlesData(show: false),
-                                        lineBarsData: [
-                                          if (responses.isNotEmpty)
-                                            LineChartBarData(
-                                              spots: responses.length == 1
-                                                  ? [FlSpot(0, _score(responses[0]))]
-                                                  : movingAvgShort,
-                                              isCurved: true,
-                                              color: Colors.blueAccent,
-                                              barWidth: 3,
-                                              dotData: FlDotData(show: responses.length == 1),
+                              if (responses.length >= 1)
+                                Row(
+                                  children: [
+                                    Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                    const SizedBox(width: 12),
+                                    Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                    const SizedBox(width: 12),
+                                    if (bernoulli.isNotEmpty)
+                                      Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
+                                  ],
+                                ),
+                              const SizedBox(height: 24),
+                              Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                child: Wrap(
+                                  spacing: 4,
+                                  runSpacing: 4,
+                                  children: responses.map((r) => Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
+                                    ),
+                                  )).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 16),
+                      ],
+                      // Show celebration or sober message if needed (for info, these are not shown)
+                      if (widget.averted != null) ...[
+                        if (widget.showCelebration)
+                          ...[
+                            SizedBox(
+                              height: 0,
+                            ),
+                            Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
+                            const SizedBox(height: 6),
+                            Text(widget.averted == true ? 'You averted a negative habit.' : 'You indulged in a positive habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                            const SizedBox(height: 18),
+                          ]
+                        else if (widget.showCelebration == false && widget.averted != null)
+                          ...[
+                            Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                            const SizedBox(height: 6),
+                            Text(widget.averted == true ? 'You missed out on a positive habit.' : 'You indulged in a negative habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                            const SizedBox(height: 18),
+                          ],
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              // Button to show stats
+                              if (!_showStats)
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showStats = true;
+                                    });
+                                  },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: cssText,
+                                    textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
+                                      const SizedBox(width: 6),
+                                      Icon(Icons.arrow_downward, color: cssText, size: 20),
+                                    ],
+                                  ),
+                                ),
+                              // Animated stats section
+                              AnimatedCrossFade(
+                                firstChild: SizedBox.shrink(),
+                                secondChild: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Chart area
+                                    SizedBox(
+                                      height: 220,
+                                      child: LineChart(
+                                        LineChartData(
+                                          backgroundColor: cssSecondary,
+                                          gridData: FlGridData(show: false),
+                                          borderData: FlBorderData(show: false),
+                                          titlesData: FlTitlesData(show: false),
+                                          lineBarsData: [
+                                            if (responses.isNotEmpty)
+                                              LineChartBarData(
+                                                spots: responses.length == 1
+                                                    ? [FlSpot(0, _score(responses[0]))]
+                                                    : movingAvgShort,
+                                                isCurved: true,
+                                                color: Colors.blueAccent,
+                                                barWidth: 3,
+                                                dotData: FlDotData(show: responses.length == 1),
+                                              ),
+                                            if (responses.length > 1)
+                                              LineChartBarData(
+                                                spots: movingAvgLong,
+                                                isCurved: true,
+                                                color: Colors.purple,
+                                                barWidth: 3,
+                                                dotData: FlDotData(show: false),
+                                              ),
+                                            if (bernoulli.isNotEmpty)
+                                              LineChartBarData(
+                                                spots: bernoulli,
+                                                isCurved: true,
+                                                color: Colors.orange,
+                                                barWidth: 2,
+                                                dotData: FlDotData(show: false),
+                                                dashArray: [6, 4],
+                                              ),
+                                          ],
+                                          minY: -0.1,
+                                          maxY: 1.1,
+                                          lineTouchData: LineTouchData(
+                                            enabled: true,
+                                            touchTooltipData: LineTouchTooltipData(
+                                              tooltipBgColor: cssText.withOpacity(0.7), // Add transparency to tooltip background
+                                              fitInsideHorizontally: true, // Prevent tooltip from being clipped horizontally
+                                              fitInsideVertically: true,   // Prevent tooltip from being clipped vertically
+                                              getTooltipItems: (touchedSpots) {
+                                                return touchedSpots.map((spot) {
+                                                  final y = spot.y;
+                                                  return LineTooltipItem(
+                                                    y.isNaN ? '' : y.toStringAsFixed(2),
+                                                    TextStyle(
+                                                      color: spot.bar.color,
+                                                      fontFamily: cssMonoFont,
+                                                      fontSize: 13,
+                                                    ),
+                                                  );
+                                                }).toList();
+                                              },
                                             ),
-                                          if (responses.length > 1)
-                                            LineChartBarData(
-                                              spots: movingAvgLong,
-                                              isCurved: true,
-                                              color: Colors.purple,
-                                              barWidth: 3,
-                                              dotData: FlDotData(show: false),
-                                            ),
-                                          if (bernoulli.isNotEmpty)
-                                            LineChartBarData(
-                                              spots: bernoulli,
-                                              isCurved: true,
-                                              color: Colors.orange,
-                                              barWidth: 2,
-                                              dotData: FlDotData(show: false),
-                                              dashArray: [6, 4],
-                                            ),
-                                        ],
-                                        minY: -0.1,
-                                        maxY: 1.1,
-                                        lineTouchData: LineTouchData(
-                                          enabled: true,
-                                          touchTooltipData: LineTouchTooltipData(
-                                            tooltipBgColor: cssText.withOpacity(0.7), // Add transparency to tooltip background
-                                            fitInsideHorizontally: true, // Prevent tooltip from being clipped horizontally
-                                            fitInsideVertically: true,   // Prevent tooltip from being clipped vertically
-                                            getTooltipItems: (touchedSpots) {
-                                              return touchedSpots.map((spot) {
-                                                final y = spot.y;
-                                                return LineTooltipItem(
-                                                  y.isNaN ? '' : y.toStringAsFixed(2),
-                                                  TextStyle(
-                                                    color: spot.bar.color,
-                                                    fontFamily: cssMonoFont,
-                                                    fontSize: 13,
-                                                  ),
-                                                );
-                                              }).toList();
-                                            },
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  if (responses.length >= 1)
-                                    Row(
-                                      children: [
-                                        Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
-                                        const SizedBox(width: 12),
-                                        Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                                        const SizedBox(width: 12),
-                                        if (bernoulli.isNotEmpty)
-                                          Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
-                                      ],
+                                    if (responses.length >= 1)
+                                      Row(
+                                        children: [
+                                          Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                          const SizedBox(width: 12),
+                                          Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                          const SizedBox(width: 12),
+                                          if (bernoulli.isNotEmpty)
+                                            Text('Bernoulli', style: TextStyle(fontFamily: cssMonoFont, color: Colors.orange, fontSize: 15)),
+                                        ],
+                                      ),
+                                    const SizedBox(height: 24),
+                                    Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                      child: Wrap(
+                                        spacing: 4,
+                                        runSpacing: 4,
+                                        children: responses.map((r) => Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
+                                          ),
+                                        )).toList(),
+                                      ),
                                     ),
-                                  const SizedBox(height: 24),
-                                  Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
-                                  const SizedBox(height: 8),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                                    child: Wrap(
-                                      spacing: 4,
-                                      runSpacing: 4,
-                                      children: responses.map((r) => Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
-                                        ),
-                                      )).toList(),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                crossFadeState: _showStats ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                                duration: const Duration(milliseconds: 350),
                               ),
-                              crossFadeState: _showStats ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                              duration: const Duration(milliseconds: 350),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
