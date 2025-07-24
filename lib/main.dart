@@ -44,8 +44,10 @@ void main() async {
   ]);
   await Hive.initFlutter();
   Hive.registerAdapter(TriggerResponseAdapter());
+  Hive.registerAdapter(TriggerAdapter());
   // await Hive.deleteBoxFromDisk('responses'); // Removed after migration
   await Hive.openBox<TriggerResponse>('responses');
+  await Hive.openBox<Trigger>('triggers');
   runApp(const HabitHijackerApp());
 }
 
@@ -116,12 +118,38 @@ class HabitHijackerApp extends StatelessWidget {
 }
 
 // Represents a user-defined trigger for a habit (e.g. "Are you drinking?")
-class Trigger {
+@HiveType(typeId: 1)
+class Trigger extends HiveObject {
+  @HiveField(0)
   final String id; // Unique identifier for this trigger
+  @HiveField(1)
   final String text; // The trigger text/question
+  @HiveField(2)
   final bool isPositive; // true = positive habit, false = negative habit
+  @HiveField(3)
   final String habit; // The habit this trigger is associated with
   Trigger({required this.id, required this.text, required this.isPositive, required this.habit});
+}
+
+class TriggerAdapter extends TypeAdapter<Trigger> {
+  @override
+  final int typeId = 1;
+  @override
+  Trigger read(BinaryReader reader) {
+    return Trigger(
+      id: reader.readString(),
+      text: reader.readString(),
+      isPositive: reader.readBool(),
+      habit: reader.readString(),
+    );
+  }
+  @override
+  void write(BinaryWriter writer, Trigger obj) {
+    writer.writeString(obj.id);
+    writer.writeString(obj.text);
+    writer.writeBool(obj.isPositive);
+    writer.writeString(obj.habit);
+  }
 }
 
 // Hive model for storing user responses to triggers
@@ -190,23 +218,54 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
-  // List of triggers, with a default negative item
-  final List<Trigger> _triggers = [
-    Trigger(id: 'default-0', text: 'Are you drinking?', isPositive: false, habit: 'smoking'),
-  ];
+  late Box<Trigger> _triggerBox;
+  List<Trigger> _triggers = [];
 
-  // Add a new trigger to the list
+  @override
+  void initState() {
+    super.initState();
+    _triggerBox = Hive.box<Trigger>('triggers');
+    _loadTriggers();
+  }
+
+  void _loadTriggers() {
+    setState(() {
+      _triggers = _triggerBox.values.toList();
+      if (_triggers.isEmpty) {
+        // Add default trigger if box is empty
+        final defaultTrigger = Trigger(id: 'default-0', text: 'Are you drinking?', isPositive: false, habit: 'smoking');
+        _triggerBox.add(defaultTrigger);
+        _triggers = _triggerBox.values.toList();
+      }
+    });
+  }
+
+  void _saveTriggers() {
+    _triggerBox.clear();
+    for (final trigger in _triggers) {
+      _triggerBox.add(trigger);
+    }
+  }
+
+  // Add a new trigger to the list and save to Hive
   void _addTrigger(String triggerText, bool isPositive, String habit) {
-    // Limit to 30 chars and capitalize
     String limitedText = triggerText.length > 40 ? triggerText.substring(0, 40) : triggerText;
     if (limitedText.isNotEmpty) {
       limitedText = limitedText[0].toUpperCase() + limitedText.substring(1);
     }
     String habitText = habit.trim();
-    // Generate a unique id for the new trigger
     String id = DateTime.now().millisecondsSinceEpoch.toString();
     setState(() {
       _triggers.add(Trigger(id: id, text: limitedText, isPositive: isPositive, habit: habitText));
+      _saveTriggers();
+    });
+  }
+
+  // Remove a trigger and save to Hive
+  void _removeTrigger(int index) {
+    setState(() {
+      _triggers.removeAt(index);
+      _saveTriggers();
     });
   }
 
@@ -567,9 +626,7 @@ class _LandingPageState extends State<LandingPage> {
                         ),
                       );
                       if (confirmed == true) {
-                        setState(() {
-                          _triggers.removeAt(index);
-                        });
+                        _removeTrigger(index);
                         final box = Hive.box<TriggerResponse>('responses');
                         final toDelete = box.values.where((r) => r.triggerId == trigger.id).toList();
                         for (final r in toDelete) {
