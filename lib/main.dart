@@ -1125,9 +1125,35 @@ class _StatsPageState extends State<StatsPage> {
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Charles Duhigg',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontFamily: cssMonoFont,
+                                  fontSize: kFontSizeSmall,
+                                  color: cssText.withOpacity(0.85)
+                                ),
+                              ),
                               const SizedBox(height: 20),
                               Text(
-                                "I got the idea for this app after reading 'The Power of Habit', by Charles Duhigg. The book describes how habits consist of loops with three parts: a cue, a routine, and a reward. Once you've figured out your habit loop, you can begin to shift the behaviour."
+                                "At the core of every habit lies a loop made of three parts: a cue, a routine, and a reward. To change or build a habit, the first step is to recognize and reflect on these components."
+                                  .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
+                                textAlign: TextAlign.justify,
+                                style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
+                                softWrap: true,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "The cue is the trigger that prompts your behavior, often without conscious thought. The routine is the habit, whether helpful or harmful. And the reward is what your brain craves. This app attempts to support that reward, whether through the satisfaction of seeing your progress or a fun fact to entertain your mind."
+                                  .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
+                                textAlign: TextAlign.justify,
+                                style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
+                                softWrap: true,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "Even if this app doesn’t change your habits overnight, let it be a tool to help you identify your cues, understand your routines, and celebrate your progress."
                                   .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
                                 textAlign: TextAlign.justify,
                                 style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
