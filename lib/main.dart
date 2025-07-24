@@ -27,6 +27,15 @@ const Color neutralColor       = Color(0xFFF4F1DE);   // #F4F1DE
 const Color negativeColor      = Color(0xFFF4D9C2);   // #F4D9C2
 const Color superNegativeColor = Color(0xFFF46D43);   // #f46d43
 
+// --- Font size constants (edit these to control all font sizes in the app) ---
+const double kFontSizeSuperMega = 22;
+const double kFontSizeMega = 20;
+const double kFontSizeHuge = 18;
+const double kFontSizeBig = 16;
+const double kFontSizeBody = 15; // Most general app text.
+const double kFontSizeSmall = 14;
+const double kFontSizeTiny = 13;
+
 // Entry point of the app
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,24 +67,24 @@ class HabitHijackerApp extends StatelessWidget {
         ),
         fontFamily: cssMonoFont,
         textTheme: TextTheme(
-          bodyLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 16),
-          bodyMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 14),
-          titleLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: 22),
-          titleMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: 18),
+          bodyLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody),
+          bodyMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody),
+          titleLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeSuperMega),
+          titleMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeHuge),
         ),
         appBarTheme: AppBarTheme(
           backgroundColor: cssBackground,
           foregroundColor: cssText,
           elevation: 2,
           centerTitle: true,
-          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: 22),
+          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeSuperMega),
         ),
         dialogBackgroundColor: cssSecondary,
         dialogTheme: DialogThemeData(
           backgroundColor: cssSecondary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontWeight: FontWeight.bold, fontSize: 18),
-          contentTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 15),
+          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontWeight: FontWeight.bold, fontSize: kFontSizeBody),
+          contentTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
@@ -93,7 +102,7 @@ class HabitHijackerApp extends StatelessWidget {
             elevation: MaterialStateProperty.all<double>(4),
             shadowColor: MaterialStateProperty.all<Color>(cssShadow),
             textStyle: MaterialStateProperty.all<TextStyle>(
-              TextStyle(fontFamily: cssMonoFont, fontWeight: FontWeight.w600, fontSize: 15),
+              TextStyle(fontFamily: cssMonoFont, fontWeight: FontWeight.w600, fontSize: kFontSizeBody),
             ),
             padding: MaterialStateProperty.all<EdgeInsets>(
               const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
@@ -214,14 +223,14 @@ class _LandingPageState extends State<LandingPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('What is your habit?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssAccent, fontWeight: FontWeight.normal)),
+              Text('What is your habit?', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssAccent, fontWeight: FontWeight.normal)),
               // Habit input
               TextField(
                 autofocus: true,
-                style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, color: cssText),
                 decoration: InputDecoration(
                   hintText: 'e.g. smoking',
-                  hintStyle: TextStyle(color: cssText.withOpacity(0.7)),
+                  hintStyle: TextStyle(color: cssText.withOpacity(0.7), fontSize: kFontSizeTiny),
                   contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                   counterStyle: TextStyle(color: cssText),
                   enabledBorder: UnderlineInputBorder(
@@ -237,13 +246,13 @@ class _LandingPageState extends State<LandingPage> {
                 },
               ),
               const SizedBox(height: 8),
-              Text('What is your trigger?', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15, color: cssAccent, fontWeight: FontWeight.normal)),
+              Text('What is your trigger?', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssAccent, fontWeight: FontWeight.normal)),
               // Trigger input
               TextField(
-                style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, color: cssText),
                 decoration: InputDecoration(
                   hintText: 'e.g. Are you drinking?',
-                  hintStyle: TextStyle(color: cssText.withOpacity(0.7)),
+                  hintStyle: TextStyle(color: cssText.withOpacity(0.7), fontSize: kFontSizeTiny),
                   contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                   counterStyle: TextStyle(color: cssText),
                   enabledBorder: UnderlineInputBorder(
@@ -266,54 +275,64 @@ class _LandingPageState extends State<LandingPage> {
                     label: Text('Negative',
                         style: TextStyle(
                           fontFamily: cssMonoFont,
-                          fontSize: 13,
+                          fontSize: kFontSizeTiny,
                           color: !isPositive ? cssBackground : cssAccent,
                         )),
                     selected: !isPositive,
                     selectedColor: cssAccent,
                     backgroundColor: cssSecondary,
-                    side: BorderSide(color: !isPositive ? cssBackground : cssAccent),
+                    side: BorderSide(color: cssAccent),
                     onSelected: (selected) {
                       isPositive = false;
                       (context as Element).markNeedsBuild();
                     },
+                    checkmarkColor: cssBackground,
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
                     label: Text('Positive',
                         style: TextStyle(
                           fontFamily: cssMonoFont,
-                          fontSize: 13,
+                          fontSize: kFontSizeTiny,
                           color: isPositive ? cssBackground : cssAccent,
                         )),
                     selected: isPositive,
                     selectedColor: cssAccent,
                     backgroundColor: cssSecondary,
-                    side: BorderSide(color: isPositive ? cssBackground : cssAccent),
+                    side: BorderSide(color: cssAccent),
                     onSelected: (selected) {
                       isPositive = true;
                       (context as Element).markNeedsBuild();
                     },
+                    checkmarkColor: cssBackground,
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   ),
                 ],
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
-            ),
-            TextButton(
-              onPressed: () {
-                if (newTrigger.trim().isNotEmpty && newHabit.trim().isNotEmpty) {
-                  Navigator.of(context).pop();
-                  _addTrigger(newTrigger.trim(), isPositive, newHabit.trim());
-                }
-              },
-              child: Text('Add', style: TextStyle(fontFamily: cssMonoFont, fontSize: 13)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeTiny)),
+                ),
+                SizedBox(width: 5), // Reduced spacing
+                TextButton(
+                  onPressed: () {
+                    if (newTrigger.trim().isNotEmpty && newHabit.trim().isNotEmpty) {
+                      Navigator.of(context).pop();
+                      _addTrigger(newTrigger.trim(), isPositive, newHabit.trim());
+                    }
+                  },
+                  child: Text('Add', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeTiny)),
+                ),
+              ],
             ),
           ],
         );
@@ -397,7 +416,7 @@ class _LandingPageState extends State<LandingPage> {
           backgroundColor: cssSecondary,
           title: Text(
             'How did you do?',
-            style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.normal, fontSize: 18),
+            style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.normal, fontSize: kFontSizeBody),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),
@@ -420,7 +439,7 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text(trigger.isPositive ? 'missed out' : 'averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text(trigger.isPositive ? 'missed out' : 'averted', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody)),
                 ),
                 const SizedBox(height: 10),
                 // Indulged button
@@ -438,7 +457,7 @@ class _LandingPageState extends State<LandingPage> {
                     elevation: 4,
                     shadowColor: cssShadow,
                   ),
-                  child: Text('indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: 15)),
+                  child: Text('indulged', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody)),
                 ),
               ],
             ),
@@ -476,7 +495,7 @@ class _LandingPageState extends State<LandingPage> {
                     },
                   ),
                   const SizedBox(height: 4),
-                  Text('Info', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 12)),
+                  Text('Info', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeTiny)),
                 ],
               ),
               // Delete info: remove all responses for this trigger
@@ -491,16 +510,16 @@ class _LandingPageState extends State<LandingPage> {
                         context: context,
                         builder: (context) => AlertDialog(
                           backgroundColor: cssSecondary,
-                          title: Text('Delete all data for this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
-                          content: Text('This will remove all your responses for "${trigger.text}". Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText)),
+                          title: Text('Delete all data for this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: kFontSizeBody)),
+                          content: Text('This will remove all your responses for "${trigger.text}". Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeSmall)),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(false),
-                              child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
+                              child: Text('Cancel', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: kFontSizeSmall)),
                             ),
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(true),
-                              child: Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent)),
+                              child: Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent, fontSize: kFontSizeSmall)),
                             ),
                           ],
                         ),
@@ -512,13 +531,13 @@ class _LandingPageState extends State<LandingPage> {
                           r.delete();
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('All data for "${trigger.text}" deleted.', style: TextStyle(fontFamily: cssMonoFont))),
+                          SnackBar(content: Text('All data for "${trigger.text}" deleted.', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall))),
                         );
                       }
                     },
                   ),
                   const SizedBox(height: 4),
-                  Text('Delete Info', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: 12)),
+                  Text('Delete Info', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: kFontSizeTiny)),
                 ],
               ),
               // Delete trigger: remove trigger and all its data
@@ -533,8 +552,8 @@ class _LandingPageState extends State<LandingPage> {
                         context: context,
                         builder: (context) => AlertDialog(
                           backgroundColor: cssSecondary,
-                          title: Text('Delete this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent)),
-                          content: Text('This will remove the trigger and all its data. Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText)),
+                          title: Text('Delete this trigger?', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontSize: kFontSizeBody)),
+                          content: Text('This will remove the trigger and all its data. Are you sure?', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeSmall)),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(false),
@@ -557,13 +576,13 @@ class _LandingPageState extends State<LandingPage> {
                           r.delete();
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Trigger and all data deleted.', style: TextStyle(fontFamily: cssMonoFont))),
+                          SnackBar(content: Text('Trigger and all data deleted.', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall))),
                         );
                       }
                     },
                   ),
                   const SizedBox(height: 4),
-                  Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent, fontSize: 12)),
+                  Text('Delete', style: TextStyle(fontFamily: cssMonoFont, color: Colors.redAccent, fontSize: kFontSizeTiny)),
                 ],
               ),
             ],
@@ -622,7 +641,7 @@ class _LandingPageState extends State<LandingPage> {
                           textStyle: TextStyle(
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w300,
-                            fontSize: 15,
+                            fontSize: kFontSizeBody,
                           ),
                         ),
                         onPressed: () {
@@ -636,7 +655,7 @@ class _LandingPageState extends State<LandingPage> {
                             trigger.text,
                             style: TextStyle(
                               fontFamily: 'monospace',
-                              fontSize: 14,
+                              fontSize: kFontSizeBody,
                               fontWeight: FontWeight.w300,
                               letterSpacing: 0.5,
                               overflow: TextOverflow.ellipsis,
@@ -886,7 +905,7 @@ class _StatsPageState extends State<StatsPage> {
             iconTheme: IconThemeData(color: cssText),
             title: Text(
               widget.habit.isNotEmpty ? widget.habit[0].toUpperCase() + widget.habit.substring(1) : '',
-              style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeSuperMega, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -924,7 +943,7 @@ class _StatsPageState extends State<StatsPage> {
                                         final color = progressMsg["color"] as Color;
                                         final parts = template.split('{highlight}');
                                         return TextSpan(
-                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, color: cssText),
                                           children: [
                                             if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
                                             TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
@@ -991,7 +1010,7 @@ class _StatsPageState extends State<StatsPage> {
                                                 TextStyle(
                                                   color: isAverage ? cssAccent : spot.bar.color,
                                                   fontFamily: cssMonoFont,
-                                                  fontSize: 13,
+                                                  fontSize: kFontSizeBody,
                                                 ),
                                               );
                                             }).toList();
@@ -1004,15 +1023,15 @@ class _StatsPageState extends State<StatsPage> {
                                 if (responses.length >= 1)
                                   Row(
                                     children: [
-                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: kFontSizeBody)),
                                       const SizedBox(width: 12),
-                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: kFontSizeSmall)),
                                       const SizedBox(width: 12),
-                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: kFontSizeSmall)),
                                     ],
                                   ),
                                 const SizedBox(height: 24),
-                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody)),
                                 const SizedBox(height: 8),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
@@ -1038,9 +1057,9 @@ class _StatsPageState extends State<StatsPage> {
                           if (widget.showCelebration)
                             ...[
                               SizedBox(height: 0),
-                              Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
+                              Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeMega, color: cssAccent)),
                               const SizedBox(height: 6),
-                              Text(widget.averted == true ? 'You averted a negative habit.' : 'You indulged in a positive habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                              Text(widget.averted == true ? 'You averted a negative habit.' : 'You indulged in a positive habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBig, color: cssText)),
                               const SizedBox(height: 18),
                               if (_scienceFact != null) ...[
                                 Container(
@@ -1057,7 +1076,7 @@ class _StatsPageState extends State<StatsPage> {
                                       Text(
                                         'Your reward is this fact:',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, color: cssText),
                                       ),
                                       Align(
                                         alignment: Alignment.center,
@@ -1069,9 +1088,10 @@ class _StatsPageState extends State<StatsPage> {
                                         ),
                                       ),
                                       Text(
-                                        _scienceFact!,
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 13, color: cssText),
+                                        _scienceFact!.replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')), // soft hyphens for long words
+                                        textAlign: TextAlign.justify,
+                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText),
+                                        softWrap: true,
                                       ),
                                     ],
                                   ),
@@ -1081,39 +1101,37 @@ class _StatsPageState extends State<StatsPage> {
                             ]
                           else if (widget.showCelebration == false && widget.averted != null)
                             ...[
-                              Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                              Text("It's ok, next time.", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeMega, color: cssText)),
                               const SizedBox(height: 6),
-                              Text(widget.averted == true ? 'You missed out on a positive habit.' : 'You indulged in a negative habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                              const SizedBox(height: 18),
-                              Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                decoration: BoxDecoration(
-                                  color: cssSecondary.withOpacity(0.85),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: cssBackground.withOpacity(0.25), width: 1),
+                              Text(widget.averted == true ? 'You missed out on a positive habit.' : 'You indulged in a negative habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBig, color: cssText)),
+                              const SizedBox(height: 25),
+                              Align(
+                                alignment: Alignment.center,
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 12),
+                                  height: 1,
+                                  width: MediaQuery.of(context).size.width * 0.7,
+                                  color: cssText.withOpacity(0.7),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
-                                      '"Small wins are exactly what they sound like, and are part of how keystone habits create widespread changes."',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: cssMonoFont,
-                                        fontSize: 14,
-                                        color: cssText.withOpacity(0.85),
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      "I got the idea for this app after reading 'The Power of Habit', by Charles Duhigg. The book describes how habits consist of loops with three parts: a cue, a routine, and a reward. Once you've figured out your habit loop, you can begin to shift the behaviour.",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(fontFamily: cssMonoFont, fontSize: 13, color: cssText.withOpacity(0.85)),
-                                    ),
-                                  ],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Small wins are exactly what they sound like, and are part of how keystone habits create widespread changes.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: cssMonoFont,
+                                  fontSize: kFontSizeSmall,
+                                  color: cssText.withOpacity(0.85),
+                                  fontStyle: FontStyle.italic,
                                 ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                "I got the idea for this app after reading 'The Power of Habit', by Charles Duhigg. The book describes how habits consist of loops with three parts: a cue, a routine, and a reward. Once you've figured out your habit loop, you can begin to shift the behaviour."
+                                  .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
+                                textAlign: TextAlign.justify,
+                                style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
+                                softWrap: true,
                               ),
                               const SizedBox(height: 18),
                             ],
@@ -1136,7 +1154,7 @@ class _StatsPageState extends State<StatsPage> {
                                         final color = progressMsg["color"] as Color;
                                         final parts = template.split('{highlight}');
                                         return TextSpan(
-                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, color: cssText),
                                           children: [
                                             if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
                                             TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
@@ -1203,7 +1221,7 @@ class _StatsPageState extends State<StatsPage> {
                                                 TextStyle(
                                                   color: isAverage ? cssAccent : spot.bar.color,
                                                   fontFamily: cssMonoFont,
-                                                  fontSize: 13,
+                                                  fontSize: kFontSizeBody,
                                                 ),
                                               );
                                             }).toList();
@@ -1216,15 +1234,15 @@ class _StatsPageState extends State<StatsPage> {
                                 if (responses.length >= 1)
                                   Row(
                                     children: [
-                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: kFontSizeBody)),
                                       const SizedBox(width: 12),
-                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: kFontSizeSmall)),
                                       const SizedBox(width: 12),
-                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: kFontSizeSmall)),
                                     ],
                                   ),
                                 const SizedBox(height: 24),
-                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody)),
                                 const SizedBox(height: 8),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
@@ -1269,7 +1287,7 @@ class _StatsPageState extends State<StatsPage> {
                         style: TextButton.styleFrom(
                           foregroundColor: cssText,
                           backgroundColor: cssBackground,
-                          textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
+                          textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, fontWeight: FontWeight.w400),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
@@ -1277,7 +1295,7 @@ class _StatsPageState extends State<StatsPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
+                            Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeBody, fontWeight: FontWeight.w400)),
                             const SizedBox(width: 6),
                             Icon(Icons.arrow_downward, color: cssText, size: 20),
                           ],
