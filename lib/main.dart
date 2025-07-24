@@ -8,6 +8,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 // --- Custom Colors from CSS ---
 // These colors are used throughout the app for consistent theming.
@@ -151,6 +152,23 @@ class TriggerResponseAdapter extends TypeAdapter<TriggerResponse> {
     writer.writeBool(obj.isPositive);
     writer.writeBool(obj.averted);
     writer.writeString(obj.timestamp.toIso8601String());
+  }
+}
+
+// Utility to load and cache science facts from assets/science.txt
+class ScienceFactProvider {
+  static List<String>? _facts;
+
+  static Future<List<String>> _loadFacts() async {
+    final data = await rootBundle.loadString('assets/science.txt');
+    return data.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+
+  static Future<String> getRandomFact() async {
+    _facts ??= await _loadFacts();
+    if (_facts!.isEmpty) return 'Science fact unavailable.';
+    final random = math.Random();
+    return _facts![random.nextInt(_facts!.length)];
   }
 }
 
@@ -663,6 +681,7 @@ class StatsPage extends StatefulWidget {
 
 class _StatsPageState extends State<StatsPage> {
   late bool _showStats; // Whether to show stats section
+  String? _scienceFact;
 
   @override
   void initState() {
@@ -670,6 +689,12 @@ class _StatsPageState extends State<StatsPage> {
     // If averted is null, this means we came from the info button, so show stats by default
     // Otherwise, keep the current behavior (show button first)
     _showStats = widget.averted == null;
+    // If celebration, load a random science fact
+    if (widget.showCelebration) {
+      ScienceFactProvider.getRandomFact().then((fact) {
+        if (mounted) setState(() => _scienceFact = fact);
+      });
+    }
   }
 
   // Helper: for negative habits, averted=1, indulged=0; for positive, averted=0, indulged=1
@@ -876,344 +901,392 @@ class _StatsPageState extends State<StatsPage> {
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 24),
-                      // If opened from info (averted == null), show stats at the top
-                      if (widget.averted == null) ...[
-                        // Stats section always visible at the top
-                        if (_showStats)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Chart area
-                              if (progressMsg != null) ...[
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 24),
+                        // If opened from info (averted == null), show stats at the top
+                        if (widget.averted == null) ...[
+                          if (_showStats)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Chart area
+                                if (progressMsg != null) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: RichText(
+                                      textAlign: TextAlign.justify,
+                                      text: () {
+                                        final template = progressMsg["messageTemplate"] as String;
+                                        final highlight = progressMsg["highlight"] as String;
+                                        final color = progressMsg["color"] as Color;
+                                        final parts = template.split('{highlight}');
+                                        return TextSpan(
+                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                          children: [
+                                            if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
+                                            TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                                            if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
+                                          ],
+                                        );
+                                      }(),
+                                    ),
+                                  ),
+                                ],
+                                SizedBox(
+                                  height: 220,
+                                  child: LineChart(
+                                    LineChartData(
+                                      backgroundColor: cssSecondary,
+                                      gridData: FlGridData(show: false),
+                                      borderData: FlBorderData(show: false),
+                                      titlesData: FlTitlesData(show: false),
+                                      lineBarsData: [
+                                        // Dotted intercept line (behind others)
+                                        if (responses.length > 0)
+                                          LineChartBarData(
+                                            spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
+                                            isCurved: false,
+                                            color: cssAccent.withOpacity(0.35),
+                                            barWidth: 2,
+                                            dotData: FlDotData(show: false),
+                                            dashArray: [6, 6],
+                                          ),
+                                        if (responses.isNotEmpty)
+                                          LineChartBarData(
+                                            spots: responses.length == 1
+                                                ? [FlSpot(0, _score(responses[0]))]
+                                                : movingAvgShort,
+                                            isCurved: true,
+                                            color: Colors.blueAccent,
+                                            barWidth: 3,
+                                            dotData: FlDotData(show: responses.length == 1),
+                                          ),
+                                        if (responses.length > 1)
+                                          LineChartBarData(
+                                            spots: movingAvgLong,
+                                            isCurved: true,
+                                            color: Colors.purple,
+                                            barWidth: 3,
+                                            dotData: FlDotData(show: false),
+                                          ),
+                                      ],
+                                      minY: -0.1,
+                                      maxY: 1.1,
+                                      lineTouchData: LineTouchData(
+                                        enabled: true,
+                                        touchTooltipData: LineTouchTooltipData(
+                                          tooltipBgColor: cssText.withOpacity(0.5),
+                                          fitInsideHorizontally: true,
+                                          fitInsideVertically: true,
+                                          getTooltipItems: (touchedSpots) {
+                                            return touchedSpots.map((spot) {
+                                              final y = spot.y;
+                                              // If the line is the average (dotted intercept), use cssAccent with no opacity
+                                              final isAverage = spot.bar.dashArray != null && spot.bar.dashArray!.isNotEmpty;
+                                              return LineTooltipItem(
+                                                y.isNaN ? '' : y.toStringAsFixed(2),
+                                                TextStyle(
+                                                  color: isAverage ? cssAccent : spot.bar.color,
+                                                  fontFamily: cssMonoFont,
+                                                  fontSize: 13,
+                                                ),
+                                              );
+                                            }).toList();
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (responses.length >= 1)
+                                  Row(
+                                    children: [
+                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                      const SizedBox(width: 12),
+                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                      const SizedBox(width: 12),
+                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                    ],
+                                  ),
+                                const SizedBox(height: 24),
+                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                const SizedBox(height: 8),
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                  child: RichText(
-                                    textAlign: TextAlign.center,
-                                    text: () {
-                                      final template = progressMsg["messageTemplate"] as String;
-                                      final highlight = progressMsg["highlight"] as String;
-                                      final color = progressMsg["color"] as Color;
-                                      final parts = template.split('{highlight}');
-                                      return TextSpan(
-                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
-                                        children: [
-                                          if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
-                                          TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                                          if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
-                                        ],
-                                      );
-                                    }(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                  child: Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: responses.map((r) => Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
+                                      ),
+                                    )).toList(),
                                   ),
                                 ),
                               ],
-                              SizedBox(
-                                height: 220,
-                                child: LineChart(
-                                  LineChartData(
-                                    backgroundColor: cssSecondary,
-                                    gridData: FlGridData(show: false),
-                                    borderData: FlBorderData(show: false),
-                                    titlesData: FlTitlesData(show: false),
-                                    lineBarsData: [
-                                      // Dotted intercept line (behind others)
-                                      if (responses.length > 0)
-                                        LineChartBarData(
-                                          spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
-                                          isCurved: false,
-                                          color: cssAccent.withOpacity(0.35),
-                                          barWidth: 2,
-                                          dotData: FlDotData(show: false),
-                                          dashArray: [6, 6],
-                                        ),
-                                      if (responses.isNotEmpty)
-                                        LineChartBarData(
-                                          spots: responses.length == 1
-                                              ? [FlSpot(0, _score(responses[0]))]
-                                              : movingAvgShort,
-                                          isCurved: true,
-                                          color: Colors.blueAccent,
-                                          barWidth: 3,
-                                          dotData: FlDotData(show: responses.length == 1),
-                                        ),
-                                      if (responses.length > 1)
-                                        LineChartBarData(
-                                          spots: movingAvgLong,
-                                          isCurved: true,
-                                          color: Colors.purple,
-                                          barWidth: 3,
-                                          dotData: FlDotData(show: false),
-                                        ),
-                                    ],
-                                    minY: -0.1,
-                                    maxY: 1.1,
-                                    lineTouchData: LineTouchData(
-                                      enabled: true,
-                                      touchTooltipData: LineTouchTooltipData(
-                                        tooltipBgColor: cssText.withOpacity(0.7),
-                                        fitInsideHorizontally: true,
-                                        fitInsideVertically: true,
-                                        getTooltipItems: (touchedSpots) {
-                                          return touchedSpots.map((spot) {
-                                            final y = spot.y;
-                                            return LineTooltipItem(
-                                              y.isNaN ? '' : y.toStringAsFixed(2),
-                                              TextStyle(
-                                                color: spot.bar.color,
-                                                fontFamily: cssMonoFont,
-                                                fontSize: 13,
-                                              ),
-                                            );
-                                          }).toList();
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (responses.length >= 1)
-                                Row(
-                                  children: [
-                                   // Average legend (dotted)
-                                   Row(
-                                     children: List.generate(7, (i) => Container(
-                                       width: 4,
-                                       height: 4,
-                                       margin: EdgeInsets.symmetric(horizontal: 1.5),
-                                       decoration: BoxDecoration(
-                                         color: cssAccent.withOpacity(0.7),
-                                         shape: BoxShape.circle,
-                                       ),
-                                     )),
-                                   ),
-                                   SizedBox(width: 4),
-                                   Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
-                                   const SizedBox(width: 12),
-                                    Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
-                                    const SizedBox(width: 12),
-                                    Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                                  ],
-                                ),
-                              const SizedBox(height: 24),
-                              Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                                child: Wrap(
-                                  spacing: 4,
-                                  runSpacing: 4,
-                                  children: responses.map((r) => Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
-                                    ),
-                                  )).toList(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 16),
-                      ],
-                      // Show celebration or sober message if needed (for info, these are not shown)
-                      if (widget.averted != null) ...[
-                        if (widget.showCelebration)
-                          ...[
-                            SizedBox(
-                              height: 0,
                             ),
-                            Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
-                            const SizedBox(height: 6),
-                            Text(widget.averted == true ? 'You averted a negative habit.' : 'You indulged in a positive habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                            const SizedBox(height: 18),
-                          ]
-                        else if (widget.showCelebration == false && widget.averted != null)
-                          ...[
-                            Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
-                            const SizedBox(height: 6),
-                            Text(widget.averted == true ? 'You missed out on a positive habit.' : 'You indulged in a negative habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
-                            const SizedBox(height: 18),
-                          ],
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              // Button to show stats
-                              if (!_showStats)
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showStats = true;
-                                    });
-                                  },
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: cssText,
-                                    textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                          const SizedBox(height: 16),
+                        ],
+                        // Show celebration or sober message if needed (for info, these are not shown)
+                        if (widget.averted != null) ...[
+                          if (widget.showCelebration)
+                            ...[
+                              SizedBox(height: 0),
+                              Text('🎉 Great job!', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 22, color: cssAccent)),
+                              const SizedBox(height: 6),
+                              Text(widget.averted == true ? 'You averted a negative habit.' : 'You indulged in a positive habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                              const SizedBox(height: 18),
+                              if (_scienceFact != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                                  margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: cssSecondary,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: cssBackground, width: 1.2),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
-                                      Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
-                                      const SizedBox(width: 6),
-                                      Icon(Icons.arrow_downward, color: cssText, size: 20),
+                                      Text(
+                                        'Your reward is this fact:',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 14, color: cssText),
+                                      ),
+                                      Align(
+                                        alignment: Alignment.center,
+                                        child: Container(
+                                          margin: const EdgeInsets.symmetric(vertical: 8),
+                                          height: 1,
+                                          width: MediaQuery.of(context).size.width * 0.7,
+                                          color: cssBackground.withOpacity(0.25),
+                                        ),
+                                      ),
+                                      Text(
+                                        _scienceFact!,
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(fontFamily: cssMonoFont, fontSize: 13, color: cssText),
+                                      ),
                                     ],
                                   ),
                                 ),
-                              // Animated stats section
-                              AnimatedCrossFade(
-                                firstChild: SizedBox.shrink(),
-                                secondChild: Column(
+                                const SizedBox(height: 18),
+                              ],
+                            ]
+                          else if (widget.showCelebration == false && widget.averted != null)
+                            ...[
+                              Text("It's ok, next time!", textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 20, color: cssAccent)),
+                              const SizedBox(height: 6),
+                              Text(widget.averted == true ? 'You missed out on a positive habit.' : 'You indulged in a negative habit.', textAlign: TextAlign.center, style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, color: cssText)),
+                              const SizedBox(height: 18),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: cssSecondary.withOpacity(0.85),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: cssBackground.withOpacity(0.25), width: 1),
+                                ),
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    // Chart area
-                                    if (progressMsg != null) ...[
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 8.0),
-                                        child: RichText(
-                                          textAlign: TextAlign.center,
-                                          text: () {
-                                            final template = progressMsg["messageTemplate"] as String;
-                                            final highlight = progressMsg["highlight"] as String;
-                                            final color = progressMsg["color"] as Color;
-                                            final parts = template.split('{highlight}');
-                                            return TextSpan(
-                                              style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
-                                              children: [
-                                                if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
-                                                TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                                                if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
-                                              ],
-                                            );
-                                          }(),
-                                        ),
-                                      ),
-                                    ],
-                                    SizedBox(
-                                      height: 220,
-                                      child: LineChart(
-                                        LineChartData(
-                                          backgroundColor: cssSecondary,
-                                          gridData: FlGridData(show: false),
-                                          borderData: FlBorderData(show: false),
-                                          titlesData: FlTitlesData(show: false),
-                                          lineBarsData: [
-                                            // Dotted intercept line (behind others)
-                                            if (responses.length > 0)
-                                              LineChartBarData(
-                                                spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
-                                                isCurved: false,
-                                                color: cssAccent.withOpacity(0.35),
-                                                barWidth: 2,
-                                                dotData: FlDotData(show: false),
-                                                dashArray: [6, 6],
-                                              ),
-                                            if (responses.isNotEmpty)
-                                              LineChartBarData(
-                                                spots: responses.length == 1
-                                                    ? [FlSpot(0, _score(responses[0]))]
-                                                    : movingAvgShort,
-                                                isCurved: true,
-                                                color: Colors.blueAccent,
-                                                barWidth: 3,
-                                                dotData: FlDotData(show: responses.length == 1),
-                                              ),
-                                            if (responses.length > 1)
-                                              LineChartBarData(
-                                                spots: movingAvgLong,
-                                                isCurved: true,
-                                                color: Colors.purple,
-                                                barWidth: 3,
-                                                dotData: FlDotData(show: false),
-                                              ),
-                                          ],
-                                          minY: -0.1,
-                                          maxY: 1.1,
-                                          lineTouchData: LineTouchData(
-                                            enabled: true,
-                                            touchTooltipData: LineTouchTooltipData(
-                                              tooltipBgColor: cssText.withOpacity(0.7), // Add transparency to tooltip background
-                                              fitInsideHorizontally: true, // Prevent tooltip from being clipped horizontally
-                                              fitInsideVertically: true,   // Prevent tooltip from being clipped vertically
-                                              getTooltipItems: (touchedSpots) {
-                                                return touchedSpots.map((spot) {
-                                                  final y = spot.y;
-                                                  return LineTooltipItem(
-                                                    y.isNaN ? '' : y.toStringAsFixed(2),
-                                                    TextStyle(
-                                                      color: spot.bar.color,
-                                                      fontFamily: cssMonoFont,
-                                                      fontSize: 13,
-                                                    ),
-                                                  );
-                                                }).toList();
-                                              },
-                                            ),
-                                          ),
-                                        ),
+                                    Text(
+                                      '"Small wins are exactly what they sound like, and are part of how keystone habits create widespread changes."',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: cssMonoFont,
+                                        fontSize: 14,
+                                        color: cssText.withOpacity(0.85),
+                                        fontStyle: FontStyle.italic,
                                       ),
                                     ),
-                                    if (responses.length >= 1)
-                                      Row(
-                                        children: [
-                                         // Average legend (dotted)
-                                         Row(
-                                           children: List.generate(7, (i) => Container(
-                                             width: 4,
-                                             height: 4,
-                                             margin: EdgeInsets.symmetric(horizontal: 1.5),
-                                             decoration: BoxDecoration(
-                                               color: cssAccent.withOpacity(0.7),
-                                               shape: BoxShape.circle,
-                                             ),
-                                           )),
-                                         ),
-                                         SizedBox(width: 4),
-                                         Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
-                                         const SizedBox(width: 12),
-                                          Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
-                                          const SizedBox(width: 12),
-                                          Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
-                                        ],
-                                      ),
-                                    const SizedBox(height: 24),
-                                    Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
-                                    const SizedBox(height: 8),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                                      child: Wrap(
-                                        spacing: 4,
-                                        runSpacing: 4,
-                                        children: responses.map((r) => Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
-                                          ),
-                                        )).toList(),
-                                      ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      "I got the idea for this app after reading 'The Power of Habit', by Charles Duhigg. The book describes how habits consist of loops with three parts: a cue, a routine, and a reward. Once you've figured out your habit loop, you can begin to shift the behaviour.",
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(fontFamily: cssMonoFont, fontSize: 13, color: cssText.withOpacity(0.85)),
                                     ),
                                   ],
                                 ),
-                                crossFadeState: _showStats ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                                duration: const Duration(milliseconds: 350),
                               ),
+                              const SizedBox(height: 18),
                             ],
+                          const SizedBox(height: 16),
+                          // Button to show stats
+                          AnimatedCrossFade(
+                            firstChild: SizedBox.shrink(),
+                            secondChild: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Chart area
+                                if (progressMsg != null) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: RichText(
+                                      textAlign: TextAlign.justify,
+                                      text: () {
+                                        final template = progressMsg["messageTemplate"] as String;
+                                        final highlight = progressMsg["highlight"] as String;
+                                        final color = progressMsg["color"] as Color;
+                                        final parts = template.split('{highlight}');
+                                        return TextSpan(
+                                          style: TextStyle(fontFamily: cssMonoFont, fontSize: 16, color: cssText),
+                                          children: [
+                                            if (parts[0].isNotEmpty) TextSpan(text: parts[0]),
+                                            TextSpan(text: highlight, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                                            if (parts.length > 1 && parts[1].isNotEmpty) TextSpan(text: parts[1]),
+                                          ],
+                                        );
+                                      }(),
+                                    ),
+                                  ),
+                                ],
+                                SizedBox(
+                                  height: 220,
+                                  child: LineChart(
+                                    LineChartData(
+                                      backgroundColor: cssSecondary,
+                                      gridData: FlGridData(show: false),
+                                      borderData: FlBorderData(show: false),
+                                      titlesData: FlTitlesData(show: false),
+                                      lineBarsData: [
+                                        // Dotted intercept line (behind others)
+                                        if (responses.length > 0)
+                                          LineChartBarData(
+                                            spots: List.generate(responses.length, (i) => FlSpot(i.toDouble(), intercept)),
+                                            isCurved: false,
+                                            color: cssAccent.withOpacity(0.35),
+                                            barWidth: 2,
+                                            dotData: FlDotData(show: false),
+                                            dashArray: [6, 6],
+                                          ),
+                                        if (responses.isNotEmpty)
+                                          LineChartBarData(
+                                            spots: responses.length == 1
+                                                ? [FlSpot(0, _score(responses[0]))]
+                                                : movingAvgShort,
+                                            isCurved: true,
+                                            color: Colors.blueAccent,
+                                            barWidth: 3,
+                                            dotData: FlDotData(show: responses.length == 1),
+                                          ),
+                                        if (responses.length > 1)
+                                          LineChartBarData(
+                                            spots: movingAvgLong,
+                                            isCurved: true,
+                                            color: Colors.purple,
+                                            barWidth: 3,
+                                            dotData: FlDotData(show: false),
+                                          ),
+                                      ],
+                                      minY: -0.1,
+                                      maxY: 1.1,
+                                      lineTouchData: LineTouchData(
+                                        enabled: true,
+                                        touchTooltipData: LineTouchTooltipData(
+                                          tooltipBgColor: cssText.withOpacity(0.5), // Add transparency to tooltip background
+                                          fitInsideHorizontally: true, // Prevent tooltip from being clipped horizontally
+                                          fitInsideVertically: true,   // Prevent tooltip from being clipped vertically
+                                          getTooltipItems: (touchedSpots) {
+                                            return touchedSpots.map((spot) {
+                                              final y = spot.y;
+                                              // If the line is the average (dotted intercept), use cssAccent with no opacity
+                                              final isAverage = spot.bar.dashArray != null && spot.bar.dashArray!.isNotEmpty;
+                                              return LineTooltipItem(
+                                                y.isNaN ? '' : y.toStringAsFixed(2),
+                                                TextStyle(
+                                                  color: isAverage ? cssAccent : spot.bar.color,
+                                                  fontFamily: cssMonoFont,
+                                                  fontSize: 13,
+                                                ),
+                                              );
+                                            }).toList();
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (responses.length >= 1)
+                                  Row(
+                                    children: [
+                                      Text('Average', style: TextStyle(fontFamily: cssMonoFont, color: cssAccent.withOpacity(0.7), fontSize: 15)),
+                                      const SizedBox(width: 12),
+                                      Text('Short MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.blueAccent, fontSize: 15)),
+                                      const SizedBox(width: 12),
+                                      Text('Long MA', style: TextStyle(fontFamily: cssMonoFont, color: Colors.purple, fontSize: 15)),
+                                    ],
+                                  ),
+                                const SizedBox(height: 24),
+                                Text('Timeline:', style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: 17)),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                  child: Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: responses.map((r) => Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _score(r) == 1.0 ? superPositiveColor : superNegativeColor,
+                                      ),
+                                    )).toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            crossFadeState: _showStats ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                            duration: const Duration(milliseconds: 350),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+          bottomNavigationBar: (!_showStats && widget.averted != null)
+              ? SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showStats = true;
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: cssText,
+                          backgroundColor: cssBackground,
+                          textStyle: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('See stats', style: TextStyle(fontFamily: cssMonoFont, fontSize: 17, fontWeight: FontWeight.w400)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.arrow_downward, color: cssText, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
         ),
         // Confetti overlay (always on top, above everything)
         if (widget.showCelebration)
