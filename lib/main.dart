@@ -142,7 +142,7 @@ class HabitHijackerApp extends StatelessWidget {
         textTheme: TextTheme(
           bodyLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody),
           bodyMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeBody),
-          titleLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeSuperMega),
+          titleLarge: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeHuge),
           titleMedium: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeHuge),
         ),
         appBarTheme: AppBarTheme(
@@ -150,7 +150,7 @@ class HabitHijackerApp extends StatelessWidget {
           foregroundColor: cssText,
           elevation: 2,
           centerTitle: true,
-          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeSuperMega),
+          titleTextStyle: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.bold, fontSize: kFontSizeHuge),
         ),
         dialogBackgroundColor: cssSecondary,
         dialogTheme: DialogThemeData(
@@ -750,9 +750,18 @@ class _LandingPageState extends State<LandingPage> {
               SizedBox(
                 height: screenHeight * 0.25,
                 child: Center(
-                  child: Image.asset(
-                    'assets/background.png',
-                    fit: BoxFit.contain,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const HijackingHabitsPage(),
+                        ),
+                      );
+                    },
+                    child: Image.asset(
+                      'assets/background.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
@@ -1042,7 +1051,7 @@ class _StatsPageState extends State<StatsPage> {
             iconTheme: IconThemeData(color: cssText),
             title: Text(
               widget.habit.isNotEmpty ? widget.habit[0].toUpperCase() + widget.habit.substring(1) : '',
-              style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeSuperMega, fontWeight: FontWeight.bold),
+              style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontSize: kFontSizeHuge, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1274,7 +1283,7 @@ class _StatsPageState extends State<StatsPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                "At the core of every habit lies a loop made of three parts: a cue, a routine, and a reward. To change or build a habit, the first step is to recognize and reflect on these components."
+                                "At the core of every habit lies a loop made of three parts: a cue, a routine, and a reward. To change or build a habit, the first step is to recognize and reflect on these components. The cue is the trigger that prompts your behavior, often without conscious thought. The routine is the habit, whether helpful or harmful. And the reward is what your brain craves."
                                   .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
                                 textAlign: TextAlign.justify,
                                 style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
@@ -1282,7 +1291,7 @@ class _StatsPageState extends State<StatsPage> {
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                "The cue is the trigger that prompts your behavior, often without conscious thought. The routine is the habit, whether helpful or harmful. And the reward is what your brain craves. This app attempts to support that reward, whether through the satisfaction of seeing your progress or a fun fact to entertain your mind."
+                                "This app aims to support the reward component of your habits, whether through the satisfaction of seeing your progress or a fun fact to entertain your mind."
                                   .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
                                 textAlign: TextAlign.justify,
                                 style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
@@ -1290,7 +1299,7 @@ class _StatsPageState extends State<StatsPage> {
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                "Even if this app doesn’t change your habits overnight, let it be a tool to help you identify your cues, understand your routines, and celebrate your progress."
+                                "Even if this app doesn’t change your habits overnight, let it be a tool to help you identify your cues, understand your routines, and capture your progress."
                                   .replaceAllMapped(RegExp(r'\w{10,}'), (m) => m.group(0)!.replaceAllMapped(RegExp(r'.{1,10}'), (s) => s.group(0)! + '\u00AD')),
                                 textAlign: TextAlign.justify,
                                 style: TextStyle(fontFamily: cssMonoFont, fontSize: kFontSizeSmall, color: cssText.withOpacity(0.85)),
@@ -1485,6 +1494,56 @@ class _StatsPageState extends State<StatsPage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// New page: Hijacking Habits
+class HijackingHabitsPage extends StatelessWidget {
+  const HijackingHabitsPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: cssBackground,
+      appBar: AppBar(
+        backgroundColor: cssBackground,
+        elevation: 2,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: cssText),
+        title: const Text(
+          'Hijacking habits',
+          style: TextStyle(
+            fontFamily: cssMonoFont,
+            color: cssText,
+            fontSize: kFontSizeHuge,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cssText),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
+        ),
+      ),
+      body: const Padding(
+        padding: EdgeInsets.all(20.0),
+        child: SingleChildScrollView(
+          child: Text(
+            'I got the idea for this app after reading "The Power of Habit" by Charles Duhigg. This is a book that explains the science behind habits, and how these inform not only how individuals behave but can also explain organisational success and social movements.\n\n'
+            'In essence, habits are an evolutionary strategy for humans not to think, allowing the most energy-consuming part of the body (the brain) to go on autopilot, making us more efficient. Habits are, however, simple, and it is this simplicity that makes them... ahem... hijackable.\n\n'
+            'At the core of every habit lies a loop made of three parts: a cue, a routine, and a reward. To change or build a habit, the first step is to recognize and reflect on these components. The cue is the trigger that prompts your behavior, often without conscious thought. The routine is the habit, whether helpful or harmful. And the reward is what your brain craves. \n\n'
+            'This app aims to support the reward component of your habits, whether through the satisfaction of seeing your progress or a fun fact to entertain your mind. Even if this app doesn’t change your habits overnight, let it be a tool to help you identify your cues, understand your routines, and capture your progress.',
+            style: TextStyle(
+              fontFamily: cssMonoFont,
+              color: cssText,
+              fontSize: kFontSizeSmall,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.justify,
+          ),
+        ),
+      ),
     );
   }
 }
