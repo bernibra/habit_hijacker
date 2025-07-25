@@ -847,6 +847,8 @@ class StatsPage extends StatefulWidget {
 class _StatsPageState extends State<StatsPage> {
   late bool _showStats; // Whether to show stats section
   String? _scienceFact;
+  final AudioPlayer _celebrationPlayer = AudioPlayer(); // For celebration sound
+  bool _celebrationPlayed = false; // To ensure sound/vibration only play once
 
   @override
   void initState() {
@@ -859,7 +861,31 @@ class _StatsPageState extends State<StatsPage> {
       ScienceFactProvider.getRandomFact().then((fact) {
         if (mounted) setState(() => _scienceFact = fact);
       });
+      // Play sound and vibrate after build
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!_celebrationPlayed) {
+          _celebrationPlayed = true;
+          try {
+            await _celebrationPlayer.play(AssetSource('success.mp3'), volume: 1.0);
+          } catch (e) {
+            // ignore error
+          }
+          try {
+            if (await Vibration.hasVibrator() ?? false) {
+              Vibration.vibrate(duration: 400);
+            }
+          } catch (e) {
+            // ignore error
+          }
+        }
+      });
     }
+  }
+
+  @override
+  void dispose() {
+    _celebrationPlayer.dispose();
+    super.dispose();
   }
 
   // Helper: for negative habits, averted=1, indulged=0; for positive, averted=0, indulged=1
