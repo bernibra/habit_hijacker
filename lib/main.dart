@@ -307,10 +307,23 @@ class _LandingPageState extends State<LandingPage> {
       // print('_loadTriggers: Loaded ' + _triggers.length.toString() + ' triggers from Hive');
       if (_triggers.isEmpty) {
         // print('_loadTriggers: No triggers found, adding default trigger');
-        final defaultTrigger = Trigger(id: 'default-0', text: 'Are you drinking?', isPositive: false, habit: 'smoking');
+        final defaultTrigger = Trigger(id: 'default-0', text: 'This is a trigger for my habit', isPositive: false, habit: 'My bad habit');
         _triggerBox.add(defaultTrigger); // Save default to Hive immediately
         _triggers = _triggerBox.values.toList();
-        // print('_loadTriggers: Default trigger added, now ' + _triggers.length.toString() + ' triggers');
+        // Add default responses for the default trigger
+        final responsesBox = Hive.box<TriggerResponse>('responses');
+        final pattern = [0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,1,1,0,0,1,1,1,0,1,1,1,1,1,1,1];
+        final now = DateTime.now();
+        for (int i = 0; i < pattern.length; i++) {
+          responsesBox.add(TriggerResponse(
+            triggerId: defaultTrigger.id,
+            triggerText: defaultTrigger.text,
+            isPositive: defaultTrigger.isPositive,
+            averted: pattern[i] == 1,
+            timestamp: now.subtract(Duration(days: pattern.length - i)),
+          ));
+        }
+        // print('_loadTriggers: Default trigger and responses added.');
       }
     });
   }
@@ -553,11 +566,25 @@ class _LandingPageState extends State<LandingPage> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           backgroundColor: cssSecondary,
-          title: Text(
-            'How did you do?',
-            style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.normal, fontSize: kFontSizeBody),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 2,
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Text(
+                  trigger.habit,
+                  style: TextStyle(fontFamily: cssMonoFont, color: cssAccent, fontWeight: FontWeight.normal, fontSize: kFontSizeBig),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: Text(
+                  'How did it go this time?',
+                  style: TextStyle(fontFamily: cssMonoFont, color: cssText, fontWeight: FontWeight.normal, fontSize: kFontSizeBody),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
           content: SingleChildScrollView(
             child: Column(
