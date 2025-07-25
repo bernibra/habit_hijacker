@@ -1,7 +1,5 @@
 # Habit Hijacker
 
-[![Latest Release](RELEASE_LINK_PLACEHOLDER)](RELEASE_LINK_PLACEHOLDER)
-
 I got the idea for this app after reading "The Power of Habit" by Charles Duhigg. This is a book that explains the science behind habits, and how these inform not only how individuals behave but can also explain organisational success and social movements.
 
 In essence, habits are an evolutionary strategy for humans not to think, allowing the most energy-consuming part of the body (the brain) to go on autopilot, making us more efficient. Habits are, however, simple, and it is this simplicity that makes them... ahem... hijackable.
@@ -17,7 +15,7 @@ This app aims to support the reward component of your habits, whether through th
 You have two options:
 
 ### 1. Download the latest release APK
-- [Download the latest APK here](RELEASE_LINK_PLACEHOLDER)
+- [Download the latest APK here](https://github.com/bernibra/habit_hijacker/releases/tag/0.1.0)
 - Transfer the APK to your phone and open it to install (you may need to allow installation from unknown sources).
 
 ### 2. Build the APK yourself
