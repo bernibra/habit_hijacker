@@ -38,17 +38,88 @@ const double kFontSizeTiny = 13;
 
 // Entry point of the app
 void main() async {
+  // Ensure Flutter engine is initialized before any async code runs (required for async main)
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock the app orientation to portrait mode for consistent UX
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+
+  // Initialize Hive for Flutter (sets up local storage directory, etc)
   await Hive.initFlutter();
+
+  // Register custom data adapters with Hive so it knows how to store/retrieve your objects
+  // (Adapters are needed for any custom class you want to store)
   Hive.registerAdapter(TriggerResponseAdapter());
   Hive.registerAdapter(TriggerAdapter());
-  // await Hive.deleteBoxFromDisk('responses'); // Removed after migration
+
+  // Open (or create if not present) a Hive box (like a database table) for storing responses
+  // Boxes are persistent key-value stores on the user's device
   await Hive.openBox<TriggerResponse>('responses');
+  // Open a Hive box for storing triggers
   await Hive.openBox<Trigger>('triggers');
+
+  // Launch the main app widget
   runApp(const HabitHijackerApp());
+}
+
+// Animated splash screen widget
+class AnimatedSplashScreen extends StatefulWidget {
+  const AnimatedSplashScreen({super.key});
+
+  @override
+  State<AnimatedSplashScreen> createState() => _AnimatedSplashScreenState();
+}
+
+class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..forward();
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+
+    Future.delayed(const Duration(seconds: 1), () {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LandingPage()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      backgroundColor: cssBackground, // cssBackground
+      body: Column(
+        children: [
+          SizedBox(height: screenHeight * 0.10), // Top margin
+          SizedBox(
+            height: screenHeight * 0.25,
+            child: Center(
+              child: Image.asset(
+                'assets/background.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 }
 
 // Main app widget, sets up theme and home page
@@ -224,30 +295,27 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
+    // print('initState called: About to open Hive box and load triggers');
     _triggerBox = Hive.box<Trigger>('triggers');
     _loadTriggers();
   }
 
   void _loadTriggers() {
+    // print('_loadTriggers() called');
     setState(() {
       _triggers = _triggerBox.values.toList();
+      // print('_loadTriggers: Loaded ' + _triggers.length.toString() + ' triggers from Hive');
       if (_triggers.isEmpty) {
-        // Add default trigger if box is empty
+        // print('_loadTriggers: No triggers found, adding default trigger');
         final defaultTrigger = Trigger(id: 'default-0', text: 'Are you drinking?', isPositive: false, habit: 'smoking');
-        _triggerBox.add(defaultTrigger);
+        _triggerBox.add(defaultTrigger); // Save default to Hive immediately
         _triggers = _triggerBox.values.toList();
+        // print('_loadTriggers: Default trigger added, now ' + _triggers.length.toString() + ' triggers');
       }
     });
   }
 
-  void _saveTriggers() {
-    _triggerBox.clear();
-    for (final trigger in _triggers) {
-      _triggerBox.add(trigger);
-    }
-  }
-
-  // Add a new trigger to the list and save to Hive
+  // Add a new trigger to the list and save to Hive immediately
   void _addTrigger(String triggerText, bool isPositive, String habit) {
     String limitedText = triggerText.length > 40 ? triggerText.substring(0, 40) : triggerText;
     if (limitedText.isNotEmpty) {
@@ -255,17 +323,29 @@ class _LandingPageState extends State<LandingPage> {
     }
     String habitText = habit.trim();
     String id = DateTime.now().millisecondsSinceEpoch.toString();
+    final newTrigger = Trigger(id: id, text: limitedText, isPositive: isPositive, habit: habitText);
     setState(() {
-      _triggers.add(Trigger(id: id, text: limitedText, isPositive: isPositive, habit: habitText));
-      _saveTriggers();
+      _triggers.add(newTrigger);
     });
+    _triggerBox.add(newTrigger); // Save immediately to Hive
+    // print('_addTrigger: Added trigger with id ' + id + ' to Hive and in-memory list');
   }
 
-  // Remove a trigger and save to Hive
+  // Remove a trigger from the list and from Hive immediately
   void _removeTrigger(int index) {
     setState(() {
-      _triggers.removeAt(index);
-      _saveTriggers();
+      final trigger = _triggers.removeAt(index);
+      // Remove from Hive by comparing IDs
+      final keyToRemove = _triggerBox.keys.firstWhere(
+        (key) => _triggerBox.get(key)?.id == trigger.id,
+        orElse: () => null,
+      );
+      if (keyToRemove != null) {
+        _triggerBox.delete(keyToRemove);
+        // print('_removeTrigger: Removed trigger with id ' + trigger.id + ' from Hive and in-memory list');
+      } else {
+        // print('_removeTrigger: Could not find trigger with id ' + trigger.id + ' in Hive');
+      }
     });
   }
 
